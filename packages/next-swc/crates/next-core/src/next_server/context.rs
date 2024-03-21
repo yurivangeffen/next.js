@@ -157,7 +157,10 @@ pub async fn get_server_resolve_options_context(
     );
     let ty = ty.into_value();
 
-    let mut custom_conditions = vec![mode.await?.condition().to_string(), "node".to_string()];
+    let mut custom_conditions = vec![
+        mode.await?.condition().to_string().into(),
+        "node".to_string().into(),
+    ];
     custom_conditions.extend(ty.conditions().iter().map(ToString::to_string));
 
     match ty {

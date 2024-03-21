@@ -257,8 +257,8 @@ impl OptionAppDir {
 /// Finds and returns the [DirectoryTree] of the app directory if existing.
 #[turbo_tasks::function]
 pub async fn find_app_dir(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionAppDir>> {
-    let app = project_path.join("app".to_string());
-    let src_app = project_path.join("src/app".to_string());
+    let app = project_path.join("app".to_string().into());
+    let src_app = project_path.join("src/app".to_string().into());
     let app_dir = if *app.get_type().await? == FileSystemEntryType::Directory {
         app
     } else if *src_app.get_type().await? == FileSystemEntryType::Directory {
@@ -373,7 +373,7 @@ async fn get_directory_tree_internal(
                 let basename = file_name
                     .rsplit_once('.')
                     .map_or(file_name, |(basename, _)| basename);
-                let alt_path = file.parent().join(format!("{}.alt.txt", basename));
+                let alt_path = file.parent().join(format!("{}.alt.txt", basename).into());
                 let alt_path = matches!(&*alt_path.get_type().await?, FileSystemEntryType::File)
                     .then_some(alt_path);
 
@@ -747,7 +747,11 @@ async fn directory_tree_to_loader_tree(
 
     if (is_root_directory || is_root_layout) && components.not_found.is_none() {
         components.not_found = Some(
-            get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string()),
+            get_next_package(app_dir).join(
+                "dist/client/components/not-found-error.js"
+                    .to_string()
+                    .into(),
+            ),
         );
     }
 
