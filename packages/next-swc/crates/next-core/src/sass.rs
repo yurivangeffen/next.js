@@ -66,7 +66,7 @@ pub async fn maybe_add_sass_loader(
             };
             // Only when the result should run through the sass pipeline, we apply
             // sass-loader.
-            if rename_as != "*" {
+            if &**rename_as != "*" {
                 continue;
             }
             let mut loaders = rule.loaders.await?.clone_value();

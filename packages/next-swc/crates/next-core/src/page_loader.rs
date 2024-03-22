@@ -136,10 +136,15 @@ impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let root = self.rebase_prefix_path.await?.unwrap_or(self.server_root);
-        Ok(AssetIdent::from_path(root.join(format!(
-            "static/chunks/pages{}",
-            get_asset_path_from_pathname(&self.pathname.await?, ".js")
-        ))))
+        Ok(AssetIdent::from_path(
+            root.join(
+                format!(
+                    "static/chunks/pages{}",
+                    get_asset_path_from_pathname(&self.pathname.await?, ".js")
+                )
+                .into(),
+            ),
+        ))
     }
 
     #[turbo_tasks::function]

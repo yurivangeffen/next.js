@@ -360,9 +360,9 @@ async fn get_pages_structure_for_directory(
                         };
                         let item_next_router_path = match basename {
                             "index" => next_router_path,
-                            _ => next_router_path.join(basename.to_string()),
+                            _ => next_router_path.join(basename.to_string().into()),
                         };
-                        let item_original_name = next_router_path.join(basename.to_string());
+                        let item_original_name = next_router_path.join(basename.to_string().into());
                         items.push((
                             basename,
                             PagesStructureItem::new(
@@ -377,7 +377,7 @@ async fn get_pages_structure_for_directory(
                             name,
                             get_pages_structure_for_directory(
                                 *dir_project_path,
-                                next_router_path.join(name.clone()),
+                                next_router_path.join(name.clone().into()),
                                 position + 1,
                                 page_extensions,
                             ),

@@ -293,7 +293,11 @@ impl ResolvePlugin for NextExternalResolvePlugin {
     fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
         ResolvePluginCondition::new(
             self.root.root(),
-            Glob::new("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js".to_string()),
+            Glob::new(
+                "**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js"
+                    .to_string()
+                    .into(),
+            ),
         )
     }
 
@@ -343,7 +347,7 @@ impl ResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
     fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
         ResolvePluginCondition::new(
             self.root.root(),
-            Glob::new("**/next/dist/**/*.shared-runtime.js".to_string()),
+            Glob::new("**/next/dist/**/*.shared-runtime.js".to_string().into()),
         )
     }
 
@@ -408,7 +412,7 @@ impl ModuleFeatureReportResolvePlugin {
 impl ResolvePlugin for ModuleFeatureReportResolvePlugin {
     #[turbo_tasks::function]
     fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
-        ResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
+        ResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string().into()))
     }
 
     #[turbo_tasks::function]
@@ -462,7 +466,7 @@ impl ResolvePlugin for NextSharedRuntimeResolvePlugin {
     fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
         ResolvePluginCondition::new(
             self.root.root(),
-            Glob::new("**/next/dist/esm/**/*.shared-runtime.js".to_string()),
+            Glob::new("**/next/dist/esm/**/*.shared-runtime.js".to_string().into()),
         )
     }
 
@@ -476,7 +480,7 @@ impl ResolvePlugin for NextSharedRuntimeResolvePlugin {
     ) -> Result<Vc<ResolveResultOption>> {
         let raw_fs_path = &*fs_path.await?;
         let modified_path = raw_fs_path.path.replace("next/dist/esm/", "next/dist/");
-        let new_path = fs_path.root().join(modified_path);
+        let new_path = fs_path.root().join(modified_path.into());
         Ok(Vc::cell(Some(
             ResolveResult::source(Vc::upcast(FileSource::new(new_path))).into(),
         )))
