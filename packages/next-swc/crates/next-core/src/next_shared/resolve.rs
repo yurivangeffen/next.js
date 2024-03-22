@@ -63,7 +63,7 @@ impl UnsupportedModulesResolvePlugin {
 impl ResolvePlugin for UnsupportedModulesResolvePlugin {
     #[turbo_tasks::function]
     fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
-        ResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
+        ResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string().into()))
     }
 
     #[turbo_tasks::function]
@@ -111,7 +111,7 @@ impl ResolvePlugin for UnsupportedModulesResolvePlugin {
 #[turbo_tasks::value(shared)]
 pub struct InvalidImportModuleIssue {
     pub file_path: Vc<FileSystemPath>,
-    pub messages: Vec<String>,
+    pub messages: Vec<Arc<String>>,
     pub skip_context_message: bool,
 }
 
@@ -145,10 +145,8 @@ impl Issue for InvalidImportModuleIssue {
 
         if !self.skip_context_message {
             //[TODO]: how do we get the import trace?
-            messages.push(format!(
-                "The error was caused by importing '{}'",
-                raw_context.path
-            ));
+            messages
+                .push(format!("The error was caused by importing '{}'", raw_context.path).into());
         }
 
         Ok(Vc::cell(Some(
@@ -170,8 +168,8 @@ impl Issue for InvalidImportModuleIssue {
 #[turbo_tasks::value]
 pub(crate) struct InvalidImportResolvePlugin {
     root: Vc<FileSystemPath>,
-    invalid_import: String,
-    message: Vec<String>,
+    invalid_import: Arc<String>,
+    message: Vec<Arc<String>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -191,7 +189,7 @@ impl InvalidImportResolvePlugin {
 impl ResolvePlugin for InvalidImportResolvePlugin {
     #[turbo_tasks::function]
     fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
-        ResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
+        ResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string().into()))
     }
 
     #[turbo_tasks::function]
@@ -208,7 +206,7 @@ impl ResolvePlugin for InvalidImportResolvePlugin {
                     file_path: context,
                     messages: self.message.clone(),
                     // styled-jsx specific resolve error have own message
-                    skip_context_message: self.invalid_import == "styled-jsx",
+                    skip_context_message: &**self.invalid_import == "styled-jsx",
                 }
                 .cell()
                 .emit();
@@ -227,11 +225,12 @@ pub(crate) fn get_invalid_client_only_resolve_plugin(
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
         root,
-        "client-only".to_string(),
+        "client-only".to_string().into(),
         vec![
             "'client-only' cannot be imported from a Server Component module. It should only be \
              used from a Client Component."
-                .to_string(),
+                .to_string()
+                .into(),
         ],
     )
 }
@@ -312,7 +311,7 @@ impl ResolvePlugin for NextExternalResolvePlugin {
         let modified_path = &path[starting_index..].replace("/esm/", "/");
         Ok(Vc::cell(Some(
             ResolveResult::primary(ResolveResultItem::External(
-                modified_path.to_string(),
+                modified_path.to_string().into(),
                 ExternalType::CommonJs,
             ))
             .into(),
