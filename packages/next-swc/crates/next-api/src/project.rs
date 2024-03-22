@@ -203,15 +203,46 @@ impl ProjectContainer {
 
         let (env, define_env, next_config, js_config, root_path, project_path, watch, dev) = {
             let options = this.options_state.get();
-            let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
+            let env: Vc<EnvMap> = Vc::cell(
+                options
+                    .env
+                    .iter()
+                    .cloned()
+                    .map(|(k, v)| ((*k).clone(), (*v).clone()))
+                    .collect(),
+            );
             let define_env: Vc<ProjectDefineEnv> = ProjectDefineEnv {
-                client: Vc::cell(options.define_env.client.iter().cloned().collect()),
-                edge: Vc::cell(options.define_env.edge.iter().cloned().collect()),
-                nodejs: Vc::cell(options.define_env.nodejs.iter().cloned().collect()),
+                client: Vc::cell(
+                    options
+                        .define_env
+                        .client
+                        .iter()
+                        .cloned()
+                        .map(|(k, v)| ((*k).clone(), (*v).clone()))
+                        .collect(),
+                ),
+                edge: Vc::cell(
+                    options
+                        .define_env
+                        .edge
+                        .iter()
+                        .cloned()
+                        .map(|(k, v)| ((*k).clone(), (*v).clone()))
+                        .collect(),
+                ),
+                nodejs: Vc::cell(
+                    options
+                        .define_env
+                        .nodejs
+                        .iter()
+                        .cloned()
+                        .map(|(k, v)| ((*k).clone(), (*v).clone()))
+                        .collect(),
+                ),
             }
             .cell();
-            let next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
-            let js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
+            let next_config = NextConfig::from_string(Vc::cell((*options.next_config).clone()));
+            let js_config = JsConfig::from_string(Vc::cell((*options.js_config).clone()));
             let root_path = options.root_path.clone();
             let project_path = options.project_path.clone();
             let watch = options.watch;
