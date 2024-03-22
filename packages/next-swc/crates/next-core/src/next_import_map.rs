@@ -254,7 +254,7 @@ pub fn get_next_build_import_map() -> Vc<ImportMap> {
     import_map.insert_exact_alias(
         "styled-jsx/style",
         ImportMapping::External(
-            Some("styled-jsx/style.js".to_string()),
+            Some("styled-jsx/style.js".to_string().into()),
             ExternalType::CommonJs,
         )
         .cell(),
@@ -921,7 +921,7 @@ async fn package_lookup_resolve_options(
         ResolveOptionsContext {
             enable_node_modules: Some(project_path.root().resolve().await?),
             enable_node_native_modules: true,
-            custom_conditions: vec!["development".to_string()],
+            custom_conditions: vec!["development".to_string().into()],
             ..Default::default()
         }
         .cell(),
