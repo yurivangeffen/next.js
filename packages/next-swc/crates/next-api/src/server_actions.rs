@@ -77,7 +77,7 @@ pub(crate) async fn create_server_actions_manifest(
 #[turbo_tasks::function]
 async fn build_server_actions_loader(
     project_path: Vc<FileSystemPath>,
-    page_name: String,
+    page_name: Arc<String>,
     actions: Vc<AllActions>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
@@ -102,7 +102,8 @@ async fn build_server_actions_loader(
     }
     write!(contents, "}});")?;
 
-    let output_path = project_path.join(format!(".next-internal/server/app{page_name}/actions.js"));
+    let output_path =
+        project_path.join(format!(".next-internal/server/app{page_name}/actions.js").into());
     let file = File::from(contents.build());
     let source = VirtualSource::new(output_path, AssetContent::file(file.into()));
     let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
@@ -132,9 +133,8 @@ async fn build_manifest(
     loader_id: Vc<String>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
     let manifest_path_prefix = page_name;
-    let manifest_path = node_root.join(format!(
-        "server/app{manifest_path_prefix}/server-reference-manifest.json",
-    ));
+    let manifest_path = node_root
+        .join(format!("server/app{manifest_path_prefix}/server-reference-manifest.json",).into());
     let mut manifest = ServerReferenceManifest {
         ..Default::default()
     };

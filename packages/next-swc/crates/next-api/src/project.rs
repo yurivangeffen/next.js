@@ -903,7 +903,7 @@ impl Project {
     #[turbo_tasks::function]
     async fn hmr_content(
         self: Vc<Self>,
-        identifier: String,
+        identifier: Arc<String>,
     ) -> Result<Vc<Box<dyn VersionedContent>>> {
         Ok(self
             .await?
@@ -912,7 +912,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn hmr_version(self: Vc<Self>, identifier: String) -> Result<Vc<Box<dyn Version>>> {
+    async fn hmr_version(self: Vc<Self>, identifier: Arc<String>) -> Result<Vc<Box<dyn Version>>> {
         let content = self.hmr_content(identifier);
 
         Ok(content.version())
@@ -923,7 +923,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn hmr_version_state(
         self: Vc<Self>,
-        identifier: String,
+        identifier: Arc<String>,
         session: TransientInstance<()>,
     ) -> Result<Vc<VersionState>> {
         let version = self.hmr_version(identifier);
@@ -943,7 +943,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn hmr_update(
         self: Vc<Self>,
-        identifier: String,
+        identifier: Arc<String>,
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
