@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, io::Write, iter::once};
+use std::{collections::BTreeMap, io::Write, iter::once, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use indexmap::{map::Entry, IndexMap};
@@ -54,8 +54,12 @@ pub(crate) async fn create_server_actions_manifest(
     chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
 ) -> Result<(Vc<Box<dyn EvaluatableAsset>>, Vc<Box<dyn OutputAsset>>)> {
     let actions = get_actions(rsc_entry, server_reference_modules, asset_context);
-    let loader =
-        build_server_actions_loader(project_path, page_name.to_string(), actions, asset_context);
+    let loader = build_server_actions_loader(
+        project_path,
+        page_name.to_string().into(),
+        actions,
+        asset_context,
+    );
     let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
         .await?
         .context("loader module must be evaluatable")?;

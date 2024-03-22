@@ -240,12 +240,13 @@ impl ProjectContainer {
             watch,
             next_config,
             js_config,
-            dist_dir,
+            dist_dir: dist_dir.into(),
             env: Vc::upcast(env),
             define_env,
             browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
                                  versions, last 1 Edge versions"
-                .to_string(),
+                .to_string()
+                .into(),
             mode: if dev {
                 NextMode::Development.cell()
             } else {
@@ -406,8 +407,8 @@ impl Project {
     async fn project_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let this = self.await?;
         let disk_fs = DiskFileSystem::new(
-            PROJECT_FILESYSTEM_NAME.to_string(),
-            this.root_path.to_string(),
+            PROJECT_FILESYSTEM_NAME.to_string().into(),
+            this.root_path.clone(),
             vec![],
         );
         if this.watch {
@@ -425,7 +426,11 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn output_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let this = self.await?;
-        let disk_fs = DiskFileSystem::new("output".to_string(), this.project_path.clone(), vec![]);
+        let disk_fs = DiskFileSystem::new(
+            "output".to_string().into(),
+            this.project_path.clone(),
+            vec![],
+        );
         Ok(Vc::upcast(disk_fs))
     }
 
@@ -437,7 +442,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        Ok(self.output_fs().root().join(this.dist_dir.to_string()))
+        Ok(self.output_fs().root().join(this.dist_dir.clone()))
     }
 
     #[turbo_tasks::function]
@@ -453,25 +458,28 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let next_config = self.next_config().await?;
-        Ok(self.client_root().join(format!(
-            "{}/_next",
-            next_config
-                .base_path
-                .clone()
-                .unwrap_or_else(|| "".to_string()),
-        )))
+        Ok(self.client_root().join(
+            format!(
+                "{}/_next",
+                next_config
+                    .base_path
+                    .clone()
+                    .unwrap_or_else(|| "".to_string()),
+            )
+            .into(),
+        ))
     }
 
     #[turbo_tasks::function]
     pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let root = self.project_root_path();
-        let project_relative = this.project_path.strip_prefix(&this.root_path).unwrap();
+        let project_relative = this.project_path.strip_prefix(&*this.root_path).unwrap();
         let project_relative = project_relative
             .strip_prefix(MAIN_SEPARATOR)
             .unwrap_or(project_relative)
             .replace(MAIN_SEPARATOR, "/");
-        Ok(root.join(project_relative))
+        Ok(root.join(project_relative.into()))
     }
 
     #[turbo_tasks::function]
@@ -504,8 +512,8 @@ impl Project {
                 self.project_path(),
                 node_root,
                 node_root,
-                node_root.join("chunks".to_string()),
-                node_root.join("assets".to_string()),
+                node_root.join("chunks".to_string().into()),
+                node_root.join("assets".to_string().into()),
                 node_build_environment(),
                 next_mode.runtime_type(),
             )
