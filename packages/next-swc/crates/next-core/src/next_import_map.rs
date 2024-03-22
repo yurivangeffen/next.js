@@ -1031,7 +1031,7 @@ fn insert_package_alias(
 ) {
     import_map.insert_wildcard_alias(
         prefix,
-        ImportMapping::PrimaryAlternative("./*".to_string(), Some(package_root)).cell(),
+        ImportMapping::PrimaryAlternative("./*".to_string().into(), Some(package_root)).cell(),
     );
 }
 

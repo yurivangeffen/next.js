@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use indexmap::IndexMap;
 use turbo_tasks::{Value, Vc};
@@ -137,7 +139,11 @@ pub async fn get_edge_resolve_options_context(
         enable_react: true,
         enable_mjs_extension: true,
         enable_edge_node_externals: true,
-        custom_extensions: next_config.resolve_extension().await?.clone_value(),
+        custom_extensions: next_config
+            .resolve_extension()
+            .await?
+            .as_ref()
+            .map(|i| i.iter().cloned().map(Arc::new).collect()),
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().cell(),
