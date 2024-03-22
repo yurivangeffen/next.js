@@ -131,8 +131,8 @@ pub async fn get_app_page_entry(
     };
 
     Ok(AppEntry {
-        pathname,
-        original_name,
+        pathname: pathname.into(),
+        original_name: original_name.into(),
         rsc_entry,
         config,
     }
