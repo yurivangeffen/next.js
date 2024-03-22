@@ -228,7 +228,7 @@ async fn wrap_edge_page(
         project_root,
         indexmap! {
             "VAR_USERLAND" => INNER.to_string(),
-            "VAR_PAGE" => pathname.clone(),
+            "VAR_PAGE" => pathname.to_string(),
             "VAR_BUILD_ID" => build_id.to_string(),
             "VAR_MODULE_DOCUMENT" => INNER_DOCUMENT.to_string(),
             "VAR_MODULE_APP" => INNER_APP.to_string(),
@@ -239,7 +239,7 @@ async fn wrap_edge_page(
             "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string(),
             "nextConfig" => serde_json::to_string(next_config)?,
             "dev" => serde_json::Value::Bool(dev).to_string(),
-            "pageRouteModuleOptions" => serde_json::to_string(&get_route_module_options(page.clone(), pathname.clone()))?,
+            "pageRouteModuleOptions" => serde_json::to_string(&get_route_module_options(page.to_string(), pathname.to_string()))?,
             "errorRouteModuleOptions" => serde_json::to_string(&get_route_module_options("/_error".to_string(), "/_error".to_string()))?,
             "user500RouteModuleOptions" => serde_json::to_string(&get_route_module_options("/500".to_string(), "/500".to_string()))?,
         },

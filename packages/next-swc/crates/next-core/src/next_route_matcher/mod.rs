@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{bail, Result};
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::node::route_matcher::{Params, RouteMatcher, RouteMatcherRef};
@@ -29,13 +31,13 @@ impl NextExactMatcher {
 #[turbo_tasks::value_impl]
 impl RouteMatcher for NextExactMatcher {
     #[turbo_tasks::function]
-    async fn matches(&self, path: String) -> Result<Vc<bool>> {
-        Ok(Vc::cell(path == *self.path.await?))
+    async fn matches(&self, path: Arc<String>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(*path == *self.path.await?))
     }
 
     #[turbo_tasks::function]
-    async fn params(&self, path: String) -> Result<Vc<Params>> {
-        Ok(Vc::cell(if path == *self.path.await? {
+    async fn params(&self, path: Arc<String>) -> Result<Vc<Params>> {
+        Ok(Vc::cell(if *path == *self.path.await? {
             Some(Default::default())
         } else {
             None
