@@ -62,7 +62,7 @@ impl ExternalCjsModulesResolvePlugin {
 
 #[turbo_tasks::function]
 fn condition(root: Vc<FileSystemPath>) -> Vc<ResolvePluginCondition> {
-    ResolvePluginCondition::new(root, Glob::new("**/node_modules/**".to_string()))
+    ResolvePluginCondition::new(root, Glob::new("**/node_modules/**".to_string().into()))
 }
 
 #[turbo_tasks::value_impl]
@@ -224,7 +224,10 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                     // have an extension in the request we try to append ".js"
                     // automatically
                     request_str.push_str(".js");
-                    request = request.append_path(".js".to_string()).resolve().await?;
+                    request = request
+                        .append_path(".js".to_string().into())
+                        .resolve()
+                        .await?;
                     continue;
                 }
                 // this can't resolve with node.js from the original location, so bundle it
