@@ -817,9 +817,12 @@ impl AppEndpoint {
             entry_client_chunks_paths.extend(client_shared_chunks_paths.iter().cloned());
 
             let app_build_manifest = AppBuildManifest {
-                pages: [(app_entry.original_name.clone(), entry_client_chunks_paths)]
-                    .into_iter()
-                    .collect(),
+                pages: [(
+                    app_entry.original_name.clone().to_string(),
+                    entry_client_chunks_paths,
+                )]
+                .into_iter()
+                .collect(),
             };
             let manifest_path_prefix = &app_entry.original_name;
             let app_build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
@@ -887,9 +890,8 @@ impl AppEndpoint {
             filename: String,
         ) -> Result<Vc<Box<dyn OutputAsset>>> {
             let manifest_path_prefix = original_name;
-            let path = node_root.join(format!(
-                "server/app{manifest_path_prefix}/app-paths-manifest.json",
-            ));
+            let path = node_root
+                .join(format!("server/app{manifest_path_prefix}/app-paths-manifest.json",).into());
             let app_paths_manifest = AppPathsManifest {
                 node_server_app_paths: PagesManifest {
                     pages: [(original_name.to_string(), filename)]
@@ -925,7 +927,7 @@ impl AppEndpoint {
 
                     let id = format!("{} -> {}", origin_path, import);
 
-                    let server_path = node_root.join("server".to_string());
+                    let server_path = node_root.join("server".to_string().into());
                     let server_path_value = server_path.await?;
                     let files = chunk_output
                         .iter()
@@ -951,9 +953,10 @@ impl AppEndpoint {
 
             let loadable_path_prefix = original_name;
             let loadable_manifest = Vc::upcast(VirtualOutputAsset::new(
-                node_root.join(format!(
-                    "server/app{loadable_path_prefix}/react-loadable-manifest.json",
-                )),
+                node_root.join(
+                    format!("server/app{loadable_path_prefix}/react-loadable-manifest.json",)
+                        .into(),
+                ),
                 AssetContent::file(
                     FileContent::Content(File::from(serde_json::to_string_pretty(
                         &loadable_manifest,
@@ -1057,14 +1060,14 @@ impl AppEndpoint {
                 let named_regex = get_named_middleware_regex(&app_entry.pathname);
                 let matchers = MiddlewareMatcher {
                     regexp: Some(named_regex),
-                    original_source: app_entry.pathname.clone(),
+                    original_source: app_entry.pathname.to_string(),
                     ..Default::default()
                 };
                 let edge_function_definition = EdgeFunctionDefinition {
                     files: file_paths_from_root,
                     wasm: wasm_paths_to_bindings(wasm_paths_from_root),
                     name: app_entry.pathname.to_string(),
-                    page: app_entry.original_name.clone(),
+                    page: app_entry.original_name.to_string(),
                     regions: app_entry
                         .config
                         .await?
@@ -1075,17 +1078,21 @@ impl AppEndpoint {
                     ..Default::default()
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {
-                    sorted_middleware: vec![app_entry.original_name.clone()],
-                    functions: [(app_entry.original_name.clone(), edge_function_definition)]
-                        .into_iter()
-                        .collect(),
+                    sorted_middleware: vec![app_entry.original_name.to_string()],
+                    functions: [(
+                        app_entry.original_name.to_string(),
+                        edge_function_definition,
+                    )]
+                    .into_iter()
+                    .collect(),
                     ..Default::default()
                 };
                 let manifest_path_prefix = &app_entry.original_name;
                 let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
-                    node_root.join(format!(
-                        "server/app{manifest_path_prefix}/middleware-manifest.json",
-                    )),
+                    node_root.join(
+                        format!("server/app{manifest_path_prefix}/middleware-manifest.json",)
+                            .into(),
+                    ),
                     AssetContent::file(
                         FileContent::Content(File::from(serde_json::to_string_pretty(
                             &middleware_manifest_v2,
@@ -1152,10 +1159,13 @@ impl AppEndpoint {
                     asset: rsc_chunk, ..
                 } = *chunking_context
                     .entry_chunk_group(
-                        server_path.join(format!(
-                            "app{original_name}.js",
-                            original_name = app_entry.original_name
-                        )),
+                        server_path.join(
+                            format!(
+                                "app{original_name}.js",
+                                original_name = app_entry.original_name
+                            )
+                            .into(),
+                        ),
                         app_entry.rsc_entry,
                         Vc::cell(evaluatable_assets),
                         Value::new(AvailabilityInfo::Root),

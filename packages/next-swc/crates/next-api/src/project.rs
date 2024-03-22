@@ -1,4 +1,4 @@
-use std::path::MAIN_SEPARATOR;
+use std::{path::MAIN_SEPARATOR, sync::Arc};
 
 use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
@@ -73,19 +73,19 @@ use crate::{
 pub struct ProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
-    pub root_path: String,
+    pub root_path: Arc<String>,
 
     /// A path inside the root_path which contains the app/pages directories.
-    pub project_path: String,
+    pub project_path: Arc<String>,
 
     /// The contents of next.config.js, serialized to JSON.
-    pub next_config: String,
+    pub next_config: Arc<String>,
 
     /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: String,
+    pub js_config: Arc<String>,
 
     /// A map of environment variables to use when compiling code.
-    pub env: Vec<(String, String)>,
+    pub env: Vec<(Arc<String>, Arc<String>)>,
 
     /// A map of environment variables which should get injected at compile
     /// time.
@@ -103,19 +103,19 @@ pub struct ProjectOptions {
 pub struct PartialProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
-    pub root_path: Option<String>,
+    pub root_path: Option<Arc<String>>,
 
     /// A path inside the root_path which contains the app/pages directories.
-    pub project_path: Option<String>,
+    pub project_path: Option<Arc<String>>,
 
     /// The contents of next.config.js, serialized to JSON.
-    pub next_config: Option<String>,
+    pub next_config: Option<Arc<String>>,
 
     /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: Option<String>,
+    pub js_config: Option<Arc<String>>,
 
     /// A map of environment variables to use when compiling code.
-    pub env: Option<Vec<(String, String)>>,
+    pub env: Option<Vec<(Arc<String>, Arc<String>)>>,
 
     /// A map of environment variables which should get injected at compile
     /// time.
@@ -131,9 +131,9 @@ pub struct PartialProjectOptions {
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct DefineEnv {
-    pub client: Vec<(String, String)>,
-    pub edge: Vec<(String, String)>,
-    pub nodejs: Vec<(String, String)>,
+    pub client: Vec<(Arc<String>, Arc<String>)>,
+    pub edge: Vec<(Arc<String>, Arc<String>)>,
+    pub nodejs: Vec<(Arc<String>, Arc<String>)>,
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
@@ -281,7 +281,7 @@ impl ProjectContainer {
     pub async fn get_source_map(
         self: Vc<Self>,
         file_path: Vc<FileSystemPath>,
-        section: Option<String>,
+        section: Option<Arc<String>>,
     ) -> Result<Vc<OptionSourceMap>> {
         let this = self.await?;
         Ok(this
@@ -294,13 +294,13 @@ impl ProjectContainer {
 pub struct Project {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
-    root_path: String,
+    root_path: Arc<String>,
 
     /// A path where to emit the build outputs. next.config.js's distDir.
-    dist_dir: String,
+    dist_dir: Arc<String>,
 
     /// A path inside the root_path which contains the app/pages directories.
-    pub project_path: String,
+    pub project_path: Arc<String>,
 
     /// Whether to watch the filesystem for file changes.
     watch: bool,
@@ -318,7 +318,7 @@ pub struct Project {
     /// time.
     define_env: Vc<ProjectDefineEnv>,
 
-    browserslist_query: String,
+    browserslist_query: Arc<String>,
 
     mode: Vc<NextMode>,
 
