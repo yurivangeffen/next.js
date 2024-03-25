@@ -187,15 +187,15 @@ pub async fn get_edge_chunking_context(
     node_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
-    let output_root = node_root.join("server/edge".to_string());
+    let output_root = node_root.join("server/edge".to_string().into());
     let next_mode = mode.await?;
     Ok(Vc::upcast(
         BrowserChunkingContext::builder(
             project_path,
             output_root,
             output_root,
-            output_root.join("chunks".to_string()),
-            output_root.join("assets".to_string()),
+            output_root.join("chunks".to_string().into()),
+            output_root.join("assets".to_string().into()),
             environment,
             next_mode.runtime_type(),
         )
