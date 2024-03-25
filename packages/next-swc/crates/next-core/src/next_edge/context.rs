@@ -162,15 +162,15 @@ pub async fn get_edge_chunking_context_with_client_assets(
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
-    let output_root = node_root.join("server/edge".to_string());
+    let output_root = node_root.join("server/edge".to_string().into());
     let next_mode = mode.await?;
     Ok(Vc::upcast(
         BrowserChunkingContext::builder(
             project_path,
             output_root,
             client_root,
-            output_root.join("chunks/ssr".to_string()),
-            client_root.join("static/media".to_string()),
+            output_root.join("chunks/ssr".to_string().into()),
+            client_root.join("static/media".to_string().into()),
             environment,
             next_mode.runtime_type(),
         )
