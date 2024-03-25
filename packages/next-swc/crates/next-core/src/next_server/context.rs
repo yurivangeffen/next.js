@@ -163,14 +163,19 @@ pub async fn get_server_resolve_options_context(
         mode.await?.condition().to_string().into(),
         "node".to_string().into(),
     ];
-    custom_conditions.extend(ty.conditions().iter().map(ToString::to_string));
+    custom_conditions.extend(
+        ty.conditions()
+            .iter()
+            .map(ToString::to_string)
+            .map(Arc::new),
+    );
 
     match ty {
         ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::Middleware { .. } => {
-            custom_conditions.push("react-server".to_string())
+            custom_conditions.push("react-server".to_string().into())
         }
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
