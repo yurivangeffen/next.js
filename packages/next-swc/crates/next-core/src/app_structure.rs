@@ -1125,7 +1125,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             let map = directory_tree_to_entrypoints_internal(
                 app_dir,
                 global_metadata,
-                subdir_name.to_string(),
+                subdir_name.to_string().into(),
                 subdirectory,
                 child_app_page.clone(),
                 root_layouts,
