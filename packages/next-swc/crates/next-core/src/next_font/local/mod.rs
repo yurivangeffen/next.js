@@ -164,10 +164,10 @@ impl NextFontLocalCssModuleReplacer {
     #[turbo_tasks::function]
     async fn import_map_result(
         context: Vc<FileSystemPath>,
-        query: String,
+        query: Arc<String>,
     ) -> Result<Vc<ImportMapResult>> {
         let request_hash = get_request_hash(&query).await?;
-        let query_vc = Vc::cell(query);
+        let query_vc = Vc::cell((*query).clone());
 
         let options = font_options_from_query_map(query_vc);
         let css_virtual_path = context.join(
