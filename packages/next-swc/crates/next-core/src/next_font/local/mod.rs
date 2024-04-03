@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
@@ -101,10 +103,13 @@ impl NextFontLocalReplacer {
                 .unwrap_or_else(|| "".to_owned()),
         );
         let js_asset = VirtualSource::new(
-            context.join(format!(
-                "{}.js",
-                get_request_id(options_vc.font_family(), request_hash).await?
-            )),
+            context.join(
+                format!(
+                    "{}.js",
+                    get_request_id(options_vc.font_family(), request_hash).await?
+                )
+                .into(),
+            ),
             AssetContent::file(FileContent::Content(file_content.into()).into()),
         );
 
@@ -115,7 +120,7 @@ impl NextFontLocalReplacer {
 #[turbo_tasks::value_impl]
 impl ImportMappingReplacement for NextFontLocalReplacer {
     #[turbo_tasks::function]
-    fn replace(&self, _capture: String) -> Vc<ImportMapping> {
+    fn replace(&self, _capture: Arc<String>) -> Vc<ImportMapping> {
         ImportMapping::Ignore.into()
     }
 
