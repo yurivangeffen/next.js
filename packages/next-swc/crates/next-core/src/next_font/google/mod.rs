@@ -204,17 +204,20 @@ impl NextFontGoogleCssModuleReplacer {
             options.font_family(),
             request_hash,
         );
-        let css_virtual_path = next_js_file_path("internal/font/google".to_string()).join(format!(
-            "/{}.module.css",
-            get_request_id(options.font_family(), request_hash).await?
-        ));
+        let css_virtual_path = next_js_file_path("internal/font/google".to_string().into()).join(
+            format!(
+                "/{}.module.css",
+                get_request_id(options.font_family(), request_hash).await?
+            )
+            .into(),
+        );
 
         // When running Next.js integration tests, use the mock data available in
         // process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES instead of making real
         // requests to Google Fonts.
         let env = Vc::upcast::<Box<dyn ProcessEnv>>(CommandLineProcessEnv::new());
         let mocked_responses_path = &*env
-            .read("NEXT_FONT_GOOGLE_MOCKED_RESPONSES".to_string())
+            .read("NEXT_FONT_GOOGLE_MOCKED_RESPONSES".to_string().into())
             .await?;
         let stylesheet_str = mocked_responses_path
             .as_ref()
