@@ -99,7 +99,7 @@ pub(crate) async fn can_use_next_font(
     )?;
 
     let document_re = lazy_regex::regex!("^(src/)?_document\\.[^/]+$");
-    let path = project_path.join(request.path.clone());
+    let path = project_path.join(request.path.clone().into());
     let can_use = !document_re.is_match(&request.path);
     if !can_use {
         NextFontIssue {
