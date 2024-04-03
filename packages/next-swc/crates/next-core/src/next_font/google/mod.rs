@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use futures::FutureExt;
@@ -83,10 +83,10 @@ impl NextFontGoogleReplacer {
     }
 
     #[turbo_tasks::function]
-    async fn import_map_result(&self, query: String) -> Result<Vc<ImportMapResult>> {
+    async fn import_map_result(&self, query: Arc<String>) -> Result<Vc<ImportMapResult>> {
         let request_hash = get_request_hash(&query).await?;
         let qstr = qstring::QString::from(query.as_str());
-        let query_vc = Vc::cell(query);
+        let query_vc = Vc::cell((*query).clone());
 
         let font_data = load_font_data(self.project_path);
         let options = font_options_from_query_map(query_vc, font_data);
@@ -94,8 +94,8 @@ impl NextFontGoogleReplacer {
         let fallback = get_font_fallback(self.project_path, options, request_hash);
         let properties = get_font_css_properties(options, fallback, request_hash).await?;
         let js_asset = VirtualSource::new(
-            next_js_file_path("internal/font/google".to_string())
-                .join(format!("{}.js", get_request_id(options.font_family(), request_hash).await?)),
+            next_js_file_path("internal/font/google".to_string().into())
+                .join(format!("{}.js", get_request_id(options.font_family(), request_hash).await?).into()),
             AssetContent::file(FileContent::Content(
                 formatdoc!(
                     r#"
@@ -141,7 +141,7 @@ impl NextFontGoogleReplacer {
 #[turbo_tasks::value_impl]
 impl ImportMappingReplacement for NextFontGoogleReplacer {
     #[turbo_tasks::function]
-    fn replace(&self, _capture: String) -> Vc<ImportMapping> {
+    fn replace(&self, _capture: Arc<String>) -> Vc<ImportMapping> {
         ImportMapping::Ignore.into()
     }
 
@@ -166,7 +166,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
 
         let this = &*self.await?;
         if can_use_next_font(this.project_path, *query).await? {
-            Ok(self.import_map_result(query.await?.to_string()))
+            Ok(self.import_map_result(query.await?.to_string().into()))
         } else {
             Ok(ImportMapResult::NoEntry.into())
         }
