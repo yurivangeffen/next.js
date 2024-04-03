@@ -225,7 +225,7 @@ impl ImportMappingReplacement for NextFontLocalCssModuleReplacer {
 
         Ok(Self::import_map_result(
             context,
-            query_vc.await?.to_string(),
+            query_vc.await?.to_string().into(),
         ))
     }
 }
