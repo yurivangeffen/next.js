@@ -335,7 +335,7 @@ pub async fn get_next_server_import_map(
             import_map.insert_exact_alias(
                 "styled-jsx/style",
                 ImportMapping::External(
-                    Some("styled-jsx/style.js".to_string()),
+                    Some("styled-jsx/style.js".to_string().into()),
                     ExternalType::CommonJs,
                 )
                 .cell(),

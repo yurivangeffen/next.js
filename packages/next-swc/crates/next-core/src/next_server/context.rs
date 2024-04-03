@@ -372,8 +372,16 @@ pub async fn get_server_module_options_context(
     // foreign_code_context_condition. This allows to import codes from
     // node_modules that requires webpack loaders, which next-dev implicitly
     // does by default.
-    let mut conditions = vec!["server".to_string(), mode.await?.condition().to_string()];
-    conditions.extend(ty.conditions().iter().map(ToString::to_string));
+    let mut conditions = vec![
+        "server".to_string().into(),
+        mode.await?.condition().to_string().into(),
+    ];
+    conditions.extend(
+        ty.conditions()
+            .iter()
+            .map(ToString::to_string)
+            .map(From::from),
+    );
     let foreign_webpack_rules = *next_config.webpack_rules(conditions).await?;
     let foreign_webpack_rules =
         maybe_add_sass_loader(next_config.sass_config(), foreign_webpack_rules).await?;
