@@ -144,7 +144,7 @@ impl ImportMappingReplacement for NextFontLocalReplacer {
 
         let this = &*self.await?;
         if can_use_next_font(this.project_path, *query_vc).await? {
-            Ok(self.import_map_result(context, query_vc.await?.to_string()))
+            Ok(self.import_map_result(context, query_vc.await?.to_string().into()))
         } else {
             Ok(ImportMapResult::NoEntry.into())
         }
@@ -199,7 +199,7 @@ impl NextFontLocalCssModuleReplacer {
 #[turbo_tasks::value_impl]
 impl ImportMappingReplacement for NextFontLocalCssModuleReplacer {
     #[turbo_tasks::function]
-    fn replace(&self, _capture: String) -> Vc<ImportMapping> {
+    fn replace(&self, _capture: Arc<String>) -> Vc<ImportMapping> {
         ImportMapping::Ignore.into()
     }
 
@@ -294,9 +294,9 @@ impl ImportMappingReplacement for NextFontLocalFontFileReplacer {
             name.push_str(".p")
         }
 
-        let font_virtual_path = context.join(format!("/{}.{}", name, ext));
+        let font_virtual_path = context.join(format!("/{}.{}", name, ext).into());
 
-        let font_file = context.join(path.clone()).read();
+        let font_file = context.join(path.clone().into()).read();
 
         let font_source = VirtualSource::new(font_virtual_path, AssetContent::file(font_file));
 
