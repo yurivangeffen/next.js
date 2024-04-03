@@ -60,11 +60,11 @@ impl NextFontLocalReplacer {
     async fn import_map_result(
         &self,
         context: Vc<FileSystemPath>,
-        query: String,
+        query: Arc<String>,
     ) -> Result<Vc<ImportMapResult>> {
         let request_hash = get_request_hash(&query).await?;
         let qstr = qstring::QString::from(query.as_str());
-        let query_vc = Vc::cell(query);
+        let query_vc = Vc::cell((*query).clone());
         let options_vc = font_options_from_query_map(query_vc);
         let font_fallbacks = get_font_fallbacks(context, options_vc, request_hash);
         let properties =
@@ -170,10 +170,13 @@ impl NextFontLocalCssModuleReplacer {
         let query_vc = Vc::cell(query);
 
         let options = font_options_from_query_map(query_vc);
-        let css_virtual_path = context.join(format!(
-            "/{}.module.css",
-            get_request_id(options.font_family(), request_hash).await?
-        ));
+        let css_virtual_path = context.join(
+            format!(
+                "/{}.module.css",
+                get_request_id(options.font_family(), request_hash).await?
+            )
+            .into(),
+        );
         let fallback = get_font_fallbacks(context, options, request_hash);
 
         let stylesheet = build_stylesheet(
