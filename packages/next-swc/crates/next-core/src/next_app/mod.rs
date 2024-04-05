@@ -49,7 +49,7 @@ pub enum PageSegment {
     /// e.g. `/[[...slug]]`
     OptionalCatchAll(Arc<String>),
     /// e.g. `/(shop)`
-    Group(String),
+    Group(Arc<String>),
     /// e.g. `/@auth`
     Parallel(Arc<String>),
     /// The final page type appended. (e.g. `/dashboard/page`,
