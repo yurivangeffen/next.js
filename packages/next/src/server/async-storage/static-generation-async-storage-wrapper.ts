@@ -15,20 +15,23 @@ export type StaticGenerationContext = {
 
   /**
    * The URL of the request. This only specifies the pathname and the search
-   * part of the URL.
+   * part of the URL. This is only undefined when generating static paths (ie,
+   * there is no request in progress, nor do we know one).
    */
-  url?: {
-    /**
-     * The pathname of the requested URL.
-     */
-    pathname: string
+  url:
+    | {
+        /**
+         * The pathname of the requested URL.
+         */
+        pathname: string
 
-    /**
-     * The search part of the requested URL. If the request did not provide a
-     * search part, this will be an empty string.
-     */
-    search?: string
-  }
+        /**
+         * The search part of the requested URL. If the request did not provide a
+         * search part, this will be an empty string.
+         */
+        search?: string
+      }
+    | undefined
   requestEndedState?: { ended?: boolean }
   renderOpts: {
     incrementalCache?: IncrementalCache

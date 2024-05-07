@@ -19,20 +19,25 @@ export interface StaticGenerationStore {
 
   /**
    * The URL of the request. This only specifies the pathname and the search
-   * part of the URL.
+   * part of the URL. This is `undefined` when generating static paths (ie, we
+   * do not know the current URL because we're invoking the function to generate
+   * the pathnames).
    */
-  readonly url?: {
-    /**
-     * The pathname of the requested URL.
-     */
-    readonly pathname: string
+  readonly url:
+    | {
+        /**
+         * The pathname of the requested URL.
+         */
+        readonly pathname: string
 
-    /**
-     * The search part of the requested URL. If the request did not provide a
-     * search part, this will be undefined.
-     */
-    readonly search?: string
-  }
+        /**
+         * The search part of the requested URL. If the request did not provide a
+         * search part, this will be undefined.
+         */
+        readonly search?: string
+      }
+    | undefined
+
   readonly incrementalCache?: IncrementalCache
   readonly isOnDemandRevalidate?: boolean
   readonly isPrerendering?: boolean

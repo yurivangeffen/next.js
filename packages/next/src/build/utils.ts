@@ -1386,6 +1386,7 @@ export async function buildAppStaticPaths({
     ComponentMod.staticGenerationAsyncStorage,
     {
       page,
+      url: undefined,
       renderOpts: {
         incrementalCache,
         supportsDynamicHTML: true,
