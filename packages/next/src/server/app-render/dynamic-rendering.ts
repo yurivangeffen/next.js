@@ -75,7 +75,8 @@ export function markCurrentScopeAsDynamic(
   store: StaticGenerationStore,
   expression: string
 ): void {
-  const { pathname } = store.url
+  const { page, url } = store
+  const pathname = url?.pathname ?? page
   if (store.isUnstableCacheCallback) {
     // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
     // creates a cache boundary. This is subtly different from reading a dynamic data source which is
@@ -122,7 +123,8 @@ export function trackDynamicDataAccessed(
   store: StaticGenerationStore,
   expression: string
 ): void {
-  const { pathname } = store.url
+  const { page, url } = store
+  const pathname = url?.pathname ?? page
   if (store.isUnstableCacheCallback) {
     throw new Error(
       `Route ${pathname} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
@@ -183,7 +185,11 @@ export function trackDynamicFetch(
   // don't need to postpone.
   if (!store.prerenderState || store.isUnstableCacheCallback) return
 
-  postponeWithTracking(store.prerenderState, expression, store.url.pathname)
+  postponeWithTracking(
+    store.prerenderState,
+    expression,
+    store.url?.pathname ?? store.page
+  )
 }
 
 function postponeWithTracking(

@@ -145,7 +145,6 @@ async function createAppRouteCode({
       VAR_DEFINITION_FILENAME: filename,
       VAR_DEFINITION_BUNDLE_PATH: bundlePath,
       VAR_RESOLVED_PAGE_PATH: resolvedPagePath,
-      VAR_ORIGINAL_PATHNAME: page,
     },
     {
       nextConfigOutput: JSON.stringify(nextConfigOutput),
@@ -773,7 +772,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       VAR_DEFINITION_PAGE: page,
       VAR_DEFINITION_PATHNAME: pathname,
       VAR_MODULE_GLOBAL_ERROR: treeCodeResult.globalError,
-      VAR_ORIGINAL_PATHNAME: page,
     },
     {
       tree: treeCodeResult.treeCode,

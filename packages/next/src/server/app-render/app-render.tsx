@@ -312,7 +312,7 @@ async function generateFlight(
     },
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
-    staticGenerationStore: { url },
+    staticGenerationStore: { page, url },
     query,
     requestId,
     flightRouterState,
@@ -321,7 +321,7 @@ async function generateFlight(
   if (!options?.skipFlight) {
     const [MetadataTree, MetadataOutlet] = createMetadataComponents({
       tree: loaderTree,
-      pathname: url.pathname,
+      pathname: url?.pathname ?? page,
       trailingSlash: ctx.renderOpts.trailingSlash,
       query,
       getDynamicParamFromSegment,
@@ -434,7 +434,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
       GlobalError,
       createDynamicallyTrackedSearchParams,
     },
-    staticGenerationStore: { url },
+    staticGenerationStore: { page, url },
   } = ctx
   const initialTree = createFlightRouterStateFromLoaderTree(
     tree,
@@ -445,7 +445,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
   const [MetadataTree, MetadataOutlet] = createMetadataComponents({
     tree,
     errorType: asNotFound ? 'not-found' : undefined,
-    pathname: url.pathname,
+    pathname: url?.pathname ?? page,
     trailingSlash: ctx.renderOpts.trailingSlash,
     query,
     getDynamicParamFromSegment: getDynamicParamFromSegment,
@@ -481,7 +481,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
       <AppRouter
         buildId={ctx.renderOpts.buildId}
         assetPrefix={ctx.assetPrefix}
-        initialCanonicalUrl={url.pathname + url.search}
+        initialCanonicalUrl={url ? url.pathname + url.search : page}
         // This is the router state tree.
         initialTree={initialTree}
         // This is the tree of React nodes that are seeded into the cache
@@ -526,14 +526,14 @@ async function ReactServerError({
       GlobalError,
       createDynamicallyTrackedSearchParams,
     },
-    staticGenerationStore: { url },
+    staticGenerationStore: { page, url },
     requestId,
     res,
   } = ctx
 
   const [MetadataTree] = createMetadataComponents({
     tree,
-    pathname: url.pathname,
+    pathname: url?.pathname ?? page,
     trailingSlash: ctx.renderOpts.trailingSlash,
     errorType,
     query,
@@ -576,7 +576,7 @@ async function ReactServerError({
     <AppRouter
       buildId={ctx.renderOpts.buildId}
       assetPrefix={ctx.assetPrefix}
-      initialCanonicalUrl={url.pathname + url.search}
+      initialCanonicalUrl={url ? url.pathname + url.search : page}
       initialTree={initialTree}
       initialHead={head}
       globalErrorComponent={GlobalError}
@@ -1499,6 +1499,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
       StaticGenerationAsyncStorageWrapper.wrap(
         renderOpts.ComponentMod.staticGenerationAsyncStorage,
         {
+          page: renderOpts.routeModule.definition.page,
           url,
           renderOpts,
           requestEndedState: { ended: false },

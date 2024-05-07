@@ -84,7 +84,6 @@ pub async fn get_app_route_entry(
             "VAR_DEFINITION_FILENAME" => path.file_stem().await?.as_ref().unwrap().clone(),
             // TODO(alexkirsz) Is this necessary?
             "VAR_DEFINITION_BUNDLE_PATH" => "".to_string(),
-            "VAR_ORIGINAL_PATHNAME" => original_name.clone(),
             "VAR_RESOLVED_PAGE_PATH" => path.to_string().await?.clone_value(),
             "VAR_USERLAND" => INNER.to_string(),
         },

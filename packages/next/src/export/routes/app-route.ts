@@ -64,7 +64,6 @@ export async function exportAppRoute(
       notFoundRoutes: [],
     },
     renderOpts: {
-      originalPathname: page,
       nextExport: true,
       supportsDynamicHTML: false,
       incrementalCache,

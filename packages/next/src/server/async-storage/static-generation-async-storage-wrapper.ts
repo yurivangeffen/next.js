@@ -9,10 +9,26 @@ import type { FetchMetric } from '../base-http'
 
 export type StaticGenerationContext = {
   /**
-   * The URL of the request. This only specifies the pathname and the search
-   * part of the URL. The other parts aren't accepted so they shouldn't be used.
+   * The page that is being rendered. This relates to the path to the page file.
    */
-  url: { pathname: string; search?: string }
+  page: string
+
+  /**
+   * The URL of the request. This only specifies the pathname and the search
+   * part of the URL.
+   */
+  url?: {
+    /**
+     * The pathname of the requested URL.
+     */
+    pathname: string
+
+    /**
+     * The search part of the requested URL. If the request did not provide a
+     * search part, this will be an empty string.
+     */
+    search?: string
+  }
   requestEndedState?: { ended?: boolean }
   renderOpts: {
     incrementalCache?: IncrementalCache
@@ -40,7 +56,6 @@ export type StaticGenerationContext = {
     // Pull some properties from RenderOptsPartial so that the docs are also
     // mirrored.
     RenderOptsPartial,
-    | 'originalPathname'
     | 'supportsDynamicHTML'
     | 'isRevalidate'
     | 'nextExport'
@@ -55,7 +70,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
 > = {
   wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
-    { url, renderOpts, requestEndedState }: StaticGenerationContext,
+    { page, url, renderOpts, requestEndedState }: StaticGenerationContext,
     callback: (store: StaticGenerationStore) => Result
   ): Result {
     /**
@@ -87,14 +102,13 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
 
     const store: StaticGenerationStore = {
       isStaticGeneration,
+      page,
       // Rather than just using the whole `url` here, we pull the parts we want
       // to ensure we don't use parts of the URL that we shouldn't. This also
       // lets us avoid requiring an empty string for `search` in the type.
-      url: {
-        pathname: url.pathname,
-        search: url.search ?? '',
-      },
-      pagePath: renderOpts.originalPathname,
+      url: url
+        ? { pathname: url.pathname, search: url.search ?? '' }
+        : undefined,
       incrementalCache:
         // we fallback to a global incremental cache for edge-runtime locally
         // so that it can access the fs cache without mocks

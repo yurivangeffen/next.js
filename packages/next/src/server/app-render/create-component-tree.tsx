@@ -229,7 +229,7 @@ async function createComponentTreeInternal({
   if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
     validateRevalidate(
       layoutOrPageMod?.revalidate,
-      staticGenerationStore.url.pathname
+      staticGenerationStore.url?.pathname ?? staticGenerationStore.page
     )
   }
 
@@ -537,7 +537,9 @@ async function createComponentTreeInternal({
         <Postpone
           prerenderState={staticGenerationStore.prerenderState}
           reason='dynamic = "force-dynamic" was used'
-          pathname={staticGenerationStore.url.pathname}
+          pathname={
+            staticGenerationStore.url?.pathname ?? staticGenerationStore.page
+          }
         />,
         loadingData,
       ],

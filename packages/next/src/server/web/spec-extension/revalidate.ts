@@ -50,7 +50,9 @@ function revalidate(tag: string, expression: string) {
 
   if (store.isUnstableCacheCallback) {
     throw new Error(
-      `Route ${store.url.pathname} used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+      `Route ${
+        store.url?.pathname ?? store.page
+      } used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
     )
   }
 
