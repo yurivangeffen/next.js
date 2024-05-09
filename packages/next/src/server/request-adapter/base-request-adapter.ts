@@ -17,15 +17,15 @@ import { parse, format } from 'node:url'
 export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
   implements RequestAdapter<ServerRequest>
 {
-  private readonly normalizers: {
+  protected readonly normalizers: {
     readonly basePath: BasePathPathnameNormalizer | undefined
     readonly i18n: I18nPathnameNormalizer | undefined
   }
 
   constructor(
-    private readonly enabledDirectories: NextEnabledDirectories,
-    private readonly i18nProvider: I18NProvider | undefined,
-    private readonly nextConfig: NextConfigComplete
+    protected readonly enabledDirectories: NextEnabledDirectories,
+    protected readonly i18nProvider: I18NProvider | undefined,
+    protected readonly nextConfig: NextConfigComplete
   ) {
     this.normalizers = {
       basePath: this.nextConfig.basePath
