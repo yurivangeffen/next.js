@@ -229,7 +229,7 @@ export default class DevServer extends Server {
           pagesDir,
           extensions,
           fileReader,
-          this.localeNormalizer
+          this.i18nNormalizer
         )
       )
       matchers.push(
@@ -237,7 +237,7 @@ export default class DevServer extends Server {
           pagesDir,
           extensions,
           fileReader,
-          this.localeNormalizer
+          this.i18nNormalizer
         )
       )
     }
@@ -379,7 +379,7 @@ export default class DevServer extends Server {
         return result
       }
 
-      result.waitUntil.catch((error) => {
+      result.waitUntil?.catch((error) => {
         this.logErrorWithOriginalStack(error, 'unhandledRejection')
       })
       return result

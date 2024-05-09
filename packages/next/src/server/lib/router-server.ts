@@ -10,6 +10,7 @@ import '../require-hook'
 
 import url from 'url'
 import path from 'path'
+import querystring from 'querystring'
 import loadConfig from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
@@ -252,7 +253,9 @@ export async function initialize(opts: {
         ...req.headers,
         'x-middleware-invoke': '',
         'x-invoke-path': invokePath,
-        'x-invoke-query': encodeURIComponent(JSON.stringify(parsedUrl.query)),
+        'x-invoke-query': encodeURIComponent(
+          querystring.stringify(parsedUrl.query)
+        ),
         ...(additionalInvokeHeaders || {}),
       }
       Object.assign(req.headers, invokeHeaders)

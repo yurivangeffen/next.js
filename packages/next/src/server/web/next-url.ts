@@ -76,7 +76,7 @@ export class NextURL {
   private analyze() {
     const info = getNextPathnameInfo(this[Internal].url.pathname, {
       nextConfig: this[Internal].options.nextConfig,
-      parseData: !process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE,
+      stripDataPrefix: !process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE,
       i18nProvider: this[Internal].options.i18nProvider,
     })
 

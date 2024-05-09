@@ -44,7 +44,6 @@ import type {
 } from 'http'
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
-import type { PathnameNormalizer } from './future/normalizers/request/pathname-normalizer'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
@@ -74,7 +73,6 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
-import { getUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
   addRequestMeta,
@@ -82,11 +80,7 @@ import {
   removeRequestMeta,
   setRequestMeta,
 } from './request-meta'
-import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
-import { getHostname } from '../shared/lib/get-hostname'
-import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
-import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import {
   RSC_HEADER,
   NEXT_RSC_UNION_QUERY,
@@ -99,25 +93,23 @@ import type {
   MatchOptions,
   RouteMatcherManager,
 } from './future/route-matcher-managers/route-matcher-manager'
-import { LocaleRouteNormalizer } from './future/normalizers/locale-route-normalizer'
+import { I18nPathnameNormalizer } from './future/normalizers/request/i18n-route-normalizer'
 import { DefaultRouteMatcherManager } from './future/route-matcher-managers/default-route-matcher-manager'
 import { AppPageRouteMatcherProvider } from './future/route-matcher-providers/app-page-route-matcher-provider'
 import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/app-route-route-matcher-provider'
 import { PagesAPIRouteMatcherProvider } from './future/route-matcher-providers/pages-api-route-matcher-provider'
 import { PagesRouteMatcherProvider } from './future/route-matcher-providers/pages-route-matcher-provider'
 import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
-import { getTracer, isBubbledError, SpanKind } from './lib/trace/tracer'
+import { getTracer, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
 import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
 import {
   fromNodeOutgoingHttpHeaders,
-  normalizeNextQueryParam,
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
 import { CACHE_ONE_YEAR, NEXT_CACHE_TAGS_HEADER } from '../lib/constants'
-import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import {
   NextRequestAdapter,
   signalFromNodeResponse,
@@ -125,17 +117,12 @@ import {
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { stripInternalHeaders } from './internal-utils'
-import { RSCPathnameNormalizer } from './future/normalizers/request/rsc'
-import { PostponedPathnameNormalizer } from './future/normalizers/request/postponed'
-import { ActionPathnameNormalizer } from './future/normalizers/request/action'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
   isAppPageRouteModule,
   isAppRouteRouteModule,
   isPagesRouteModule,
 } from './future/route-modules/checks'
-import { PrefetchRSCPathnameNormalizer } from './future/normalizers/request/prefetch-rsc'
-import { NextDataPathnameNormalizer } from './future/normalizers/request/next-data'
 import { getIsServerAction } from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from './future/helpers/interception-routes'
 import { toRoute } from './lib/to-route'
@@ -143,6 +130,14 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
 import { checkIsAppPPREnabled } from './lib/experimental/ppr'
+import type { RequestAdapter } from './request-adapter/request-adapter'
+import { MinimalRequestAdapter } from './request-adapter/minimal-mode-request-adapter'
+import {
+  InvokeError,
+  InternalRequestAdapter,
+} from './request-adapter/internal-request-adapter'
+import { BaseRequestAdapter } from './request-adapter/base-request-adapter'
+import { BubbledError, isBubbledError } from './lib/trace/bubble-error'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -402,15 +397,13 @@ export default abstract class Server<
   // TODO-APP: (wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
   public readonly matchers: RouteMatcherManager
   protected readonly i18nProvider?: I18NProvider
-  protected readonly localeNormalizer?: LocaleRouteNormalizer
+  protected readonly i18nNormalizer?: I18nPathnameNormalizer
 
-  protected readonly normalizers: {
-    readonly action: ActionPathnameNormalizer | undefined
-    readonly postponed: PostponedPathnameNormalizer | undefined
-    readonly rsc: RSCPathnameNormalizer | undefined
-    readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
-    readonly data: NextDataPathnameNormalizer | undefined
-  }
+  /**
+   * The request adapter is used to adapt the incoming request based on the
+   * environment Next.js is running inside.
+   */
+  private readonly requestAdapter: RequestAdapter<ServerRequest>
 
   public constructor(options: ServerOptions) {
     const {
@@ -455,8 +448,8 @@ export default abstract class Server<
       : undefined
 
     // Configure the locale normalizer, it's used for routes inside `pages/`.
-    this.localeNormalizer = this.i18nProvider
-      ? new LocaleRouteNormalizer(this.i18nProvider)
+    this.i18nNormalizer = this.i18nProvider
+      ? new I18nPathnameNormalizer(this.i18nProvider)
       : undefined
 
     // Only serverRuntimeConfig needs the default
@@ -480,31 +473,6 @@ export default abstract class Server<
     const isAppPPREnabled =
       this.enabledDirectories.app &&
       checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
-
-    this.normalizers = {
-      // We should normalize the pathname from the RSC prefix only in minimal
-      // mode as otherwise that route is not exposed external to the server as
-      // we instead only rely on the headers.
-      postponed:
-        isAppPPREnabled && this.minimalMode
-          ? new PostponedPathnameNormalizer()
-          : undefined,
-      rsc:
-        this.enabledDirectories.app && this.minimalMode
-          ? new RSCPathnameNormalizer()
-          : undefined,
-      prefetchRSC:
-        isAppPPREnabled && this.minimalMode
-          ? new PrefetchRSCPathnameNormalizer()
-          : undefined,
-      data: this.enabledDirectories.pages
-        ? new NextDataPathnameNormalizer(this.buildId)
-        : undefined,
-      action:
-        this.enabledDirectories.app && this.minimalMode
-          ? new ActionPathnameNormalizer()
-          : undefined,
-    }
 
     this.nextFontManifest = this.getNextFontManifest()
 
@@ -580,70 +548,34 @@ export default abstract class Server<
 
     this.setAssetPrefix(assetPrefix)
     this.responseCache = this.getResponseCache({ dev })
+
+    // Setup the request adapter.
+    if (this.minimalMode) {
+      this.requestAdapter = new MinimalRequestAdapter(
+        this.buildId,
+        this.enabledDirectories,
+        this.i18nProvider,
+        this.matchers,
+        this.nextConfig,
+        this.getRoutesManifest.bind(this)
+      )
+    } else if (process.env.NEXT_RUNTIME !== 'edge') {
+      this.requestAdapter = new InternalRequestAdapter(
+        this.enabledDirectories,
+        this.i18nProvider,
+        this.nextConfig
+      )
+    } else {
+      this.requestAdapter = new BaseRequestAdapter(
+        this.enabledDirectories,
+        this.i18nProvider,
+        this.nextConfig
+      )
+    }
   }
 
   protected reloadMatchers() {
     return this.matchers.reload()
-  }
-
-  private handleRSCRequest: RouteHandler<ServerRequest, ServerResponse> = (
-    req,
-    _res,
-    parsedUrl
-  ) => {
-    if (!parsedUrl.pathname) return false
-
-    if (this.normalizers.prefetchRSC?.match(parsedUrl.pathname)) {
-      parsedUrl.pathname = this.normalizers.prefetchRSC.normalize(
-        parsedUrl.pathname,
-        true
-      )
-
-      // Mark the request as a router prefetch request.
-      req.headers[RSC_HEADER.toLowerCase()] = '1'
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
-      addRequestMeta(req, 'isRSCRequest', true)
-      addRequestMeta(req, 'isPrefetchRSCRequest', true)
-    } else if (this.normalizers.rsc?.match(parsedUrl.pathname)) {
-      parsedUrl.pathname = this.normalizers.rsc.normalize(
-        parsedUrl.pathname,
-        true
-      )
-
-      // Mark the request as a RSC request.
-      req.headers[RSC_HEADER.toLowerCase()] = '1'
-      addRequestMeta(req, 'isRSCRequest', true)
-    } else if (req.headers['x-now-route-matches']) {
-      // If we didn't match, return with the flight headers stripped. If in
-      // minimal mode we didn't match based on the path, this can't be a RSC
-      // request. This is because Vercel only sends this header during
-      // revalidation requests and we want the cache to instead depend on the
-      // request path for flight information.
-      stripFlightHeaders(req.headers)
-
-      return false
-    } else if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
-      addRequestMeta(req, 'isRSCRequest', true)
-
-      if (req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1') {
-        addRequestMeta(req, 'isPrefetchRSCRequest', true)
-      }
-    } else {
-      // Otherwise just return without doing anything.
-      return false
-    }
-
-    // If we're here, this is a data request, as it didn't return and it matched
-    // either a RSC or a prefetch RSC request.
-    parsedUrl.query.__nextDataReq = '1'
-
-    if (req.url) {
-      const parsed = parseUrl(req.url)
-      parsed.pathname = parsedUrl.pathname
-      req.url = formatUrl(parsed)
-    }
-
-    return false
   }
 
   private handleNextDataRequest: RouteHandler<ServerRequest, ServerResponse> =
@@ -928,6 +860,7 @@ export default abstract class Server<
         )
       }
 
+      // Update the `x-forwarded-*` headers.
       const { originalRequest = null } = isNodeNextRequest(req) ? req : {}
       const xForwardedProto = originalRequest?.headers['x-forwarded-proto']
       const isHttps = xForwardedProto
@@ -947,301 +880,8 @@ export default abstract class Server<
       // it captures the initial URL.
       this.attachRequestMeta(req, parsedUrl)
 
-      let finished = await this.handleRSCRequest(req, res, parsedUrl)
-      if (finished) return
-
-      const domainLocale = this.i18nProvider?.detectDomainLocale(
-        getHostname(parsedUrl, req.headers)
-      )
-
-      const defaultLocale =
-        domainLocale?.defaultLocale || this.nextConfig.i18n?.defaultLocale
-      parsedUrl.query.__nextDefaultLocale = defaultLocale
-
-      const url = parseUrlUtil(req.url.replace(/^\/+/, '/'))
-      const pathnameInfo = getNextPathnameInfo(url.pathname, {
-        nextConfig: this.nextConfig,
-        i18nProvider: this.i18nProvider,
-      })
-      url.pathname = pathnameInfo.pathname
-
-      if (pathnameInfo.basePath) {
-        req.url = removePathPrefix(req.url!, this.nextConfig.basePath)
-      }
-
-      const useMatchedPathHeader =
-        this.minimalMode && typeof req.headers['x-matched-path'] === 'string'
-
-      // TODO: merge handling with x-invoke-path
-      if (useMatchedPathHeader) {
-        try {
-          if (this.enabledDirectories.app) {
-            // ensure /index path is normalized for prerender
-            // in minimal mode
-            if (req.url.match(/^\/index($|\?)/)) {
-              req.url = req.url.replace(/^\/index/, '/')
-            }
-            parsedUrl.pathname =
-              parsedUrl.pathname === '/index' ? '/' : parsedUrl.pathname
-          }
-
-          // x-matched-path is the source of truth, it tells what page
-          // should be rendered because we don't process rewrites in minimalMode
-          let { pathname: matchedPath } = new URL(
-            req.headers['x-matched-path'] as string,
-            'http://localhost'
-          )
-
-          let { pathname: urlPathname } = new URL(req.url, 'http://localhost')
-
-          // For ISR the URL is normalized to the prerenderPath so if
-          // it's a data request the URL path will be the data URL,
-          // basePath is already stripped by this point
-          if (this.normalizers.data?.match(urlPathname)) {
-            parsedUrl.query.__nextDataReq = '1'
-          }
-          // In minimal mode, if PPR is enabled, then we should check to see if
-          // the matched path is a postponed path, and if it is, handle it.
-          else if (
-            this.normalizers.postponed?.match(matchedPath) &&
-            req.method === 'POST'
-          ) {
-            // Decode the postponed state from the request body, it will come as
-            // an array of buffers, so collect them and then concat them to form
-            // the string.
-            const body: Array<Buffer> = []
-            for await (const chunk of req.body) {
-              body.push(chunk)
-            }
-            const postponed = Buffer.concat(body).toString('utf8')
-
-            addRequestMeta(req, 'postponed', postponed)
-
-            // If the request does not have the `x-now-route-matches` header,
-            // it means that the request has it's exact path specified in the
-            // `x-matched-path` header. In this case, we should update the
-            // pathname to the matched path.
-            if (!req.headers['x-now-route-matches']) {
-              urlPathname = this.normalizers.postponed.normalize(
-                matchedPath,
-                true
-              )
-            }
-          }
-
-          matchedPath = this.normalize(matchedPath)
-          const normalizedUrlPath = this.stripNextDataPath(urlPathname)
-
-          // Perform locale detection and normalization.
-          const localeAnalysisResult = this.i18nProvider?.analyze(matchedPath, {
-            defaultLocale,
-          })
-
-          // The locale result will be defined even if the locale was not
-          // detected for the request because it will be inferred from the
-          // default locale.
-          if (localeAnalysisResult) {
-            parsedUrl.query.__nextLocale = localeAnalysisResult.detectedLocale
-
-            // If the detected locale was inferred from the default locale, we
-            // need to modify the metadata on the request to indicate that.
-            if (localeAnalysisResult.inferredFromDefault) {
-              parsedUrl.query.__nextInferredLocaleFromDefault = '1'
-            } else {
-              delete parsedUrl.query.__nextInferredLocaleFromDefault
-            }
-          }
-
-          // TODO: check if this is needed any more?
-          matchedPath = denormalizePagePath(matchedPath)
-
-          let srcPathname = matchedPath
-          let pageIsDynamic = isDynamicRoute(srcPathname)
-
-          if (!pageIsDynamic) {
-            const match = await this.matchers.match(srcPathname, {
-              i18n: localeAnalysisResult,
-            })
-
-            // Update the source pathname to the matched page's pathname.
-            if (match) {
-              srcPathname = match.definition.pathname
-              // The page is dynamic if the params are defined.
-              pageIsDynamic = typeof match.params !== 'undefined'
-            }
-          }
-
-          // The rest of this function can't handle i18n properly, so ensure we
-          // restore the pathname with the locale information stripped from it
-          // now that we're done matching if we're using i18n.
-          if (localeAnalysisResult) {
-            matchedPath = localeAnalysisResult.pathname
-          }
-
-          const utils = getUtils({
-            pageIsDynamic,
-            page: srcPathname,
-            i18n: this.nextConfig.i18n,
-            basePath: this.nextConfig.basePath,
-            rewrites: this.getRoutesManifest()?.rewrites || {
-              beforeFiles: [],
-              afterFiles: [],
-              fallback: [],
-            },
-            caseSensitive: !!this.nextConfig.experimental.caseSensitiveRoutes,
-          })
-
-          // Ensure parsedUrl.pathname includes locale before processing
-          // rewrites or they won't match correctly.
-          if (defaultLocale && !pathnameInfo.locale) {
-            parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname}`
-          }
-
-          const pathnameBeforeRewrite = parsedUrl.pathname
-          const rewriteParams = utils.handleRewrites(req, parsedUrl)
-          const rewriteParamKeys = Object.keys(rewriteParams)
-          const didRewrite = pathnameBeforeRewrite !== parsedUrl.pathname
-
-          if (didRewrite && parsedUrl.pathname) {
-            addRequestMeta(req, 'rewroteURL', parsedUrl.pathname)
-          }
-          const routeParamKeys = new Set<string>()
-
-          for (const key of Object.keys(parsedUrl.query)) {
-            const value = parsedUrl.query[key]
-
-            normalizeNextQueryParam(key, (normalizedKey) => {
-              if (!parsedUrl) return // typeguard
-
-              parsedUrl.query[normalizedKey] = value
-              routeParamKeys.add(normalizedKey)
-              delete parsedUrl.query[key]
-            })
-          }
-
-          // interpolate dynamic params and normalize URL if needed
-          if (pageIsDynamic) {
-            let params: ParsedUrlQuery | false = {}
-
-            let paramsResult = utils.normalizeDynamicRouteParams(
-              parsedUrl.query
-            )
-
-            // for prerendered ISR paths we attempt parsing the route
-            // params from the URL directly as route-matches may not
-            // contain the correct values due to the filesystem path
-            // matching before the dynamic route has been matched
-            if (
-              !paramsResult.hasValidParams &&
-              pageIsDynamic &&
-              !isDynamicRoute(normalizedUrlPath)
-            ) {
-              let matcherParams = utils.dynamicRouteMatcher?.(normalizedUrlPath)
-
-              if (matcherParams) {
-                utils.normalizeDynamicRouteParams(matcherParams)
-                Object.assign(paramsResult.params, matcherParams)
-                paramsResult.hasValidParams = true
-              }
-            }
-
-            if (paramsResult.hasValidParams) {
-              params = paramsResult.params
-            }
-
-            if (
-              req.headers['x-now-route-matches'] &&
-              isDynamicRoute(matchedPath) &&
-              !paramsResult.hasValidParams
-            ) {
-              const opts: Record<string, string> = {}
-              const routeParams = utils.getParamsFromRouteMatches(
-                req,
-                opts,
-                parsedUrl.query.__nextLocale || ''
-              )
-
-              // If this returns a locale, it means that the locale was detected
-              // from the pathname.
-              if (opts.locale) {
-                parsedUrl.query.__nextLocale = opts.locale
-
-                // As the locale was parsed from the pathname, we should mark
-                // that the locale was not inferred as the default.
-                delete parsedUrl.query.__nextInferredLocaleFromDefault
-              }
-              paramsResult = utils.normalizeDynamicRouteParams(
-                routeParams,
-                true
-              )
-
-              if (paramsResult.hasValidParams) {
-                params = paramsResult.params
-              }
-            }
-
-            // handle the actual dynamic route name being requested
-            if (
-              pageIsDynamic &&
-              utils.defaultRouteMatches &&
-              normalizedUrlPath === srcPathname &&
-              !paramsResult.hasValidParams &&
-              !utils.normalizeDynamicRouteParams({ ...params }, true)
-                .hasValidParams
-            ) {
-              params = utils.defaultRouteMatches
-            }
-
-            if (params) {
-              matchedPath = utils.interpolateDynamicPath(srcPathname, params)
-              req.url = utils.interpolateDynamicPath(req.url!, params)
-            }
-          }
-
-          if (pageIsDynamic || didRewrite) {
-            utils.normalizeVercelUrl(req, true, [
-              ...rewriteParamKeys,
-              ...Object.keys(utils.defaultRouteRegex?.groups || {}),
-            ])
-          }
-          for (const key of routeParamKeys) {
-            delete parsedUrl.query[key]
-          }
-          parsedUrl.pathname = matchedPath
-          url.pathname = parsedUrl.pathname
-
-          finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
-          if (finished) return
-        } catch (err) {
-          if (err instanceof DecodeError || err instanceof NormalizeError) {
-            res.statusCode = 400
-            return this.renderError(null, req, res, '/_error', {})
-          }
-          throw err
-        }
-      }
-
-      addRequestMeta(req, 'isLocaleDomain', Boolean(domainLocale))
-
-      if (pathnameInfo.locale) {
-        req.url = formatUrl(url)
-        addRequestMeta(req, 'didStripLocale', true)
-      }
-
-      // If we aren't in minimal mode or there is no locale in the query
-      // string, add the locale to the query string.
-      if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
-        // If the locale is in the pathname, add it to the query string.
-        if (pathnameInfo.locale) {
-          parsedUrl.query.__nextLocale = pathnameInfo.locale
-        }
-        // If the default locale is available, add it to the query string and
-        // mark it as inferred rather than implicit.
-        else if (defaultLocale) {
-          parsedUrl.query.__nextLocale = defaultLocale
-          parsedUrl.query.__nextInferredLocaleFromDefault = '1'
-        }
-      }
+      // Adapt the request using the adapter if it's setup.
+      await this.requestAdapter.adapt(req, parsedUrl)
 
       // set incremental cache to request meta so it can
       // be passed down for edge functions and the fetch disk
@@ -1271,94 +911,14 @@ export default abstract class Server<
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
-      // when x-invoke-path is specified we can short short circuit resolving
-      // we only honor this header if we are inside of a render worker to
-      // prevent external users coercing the routing path
-      const invokePath = req.headers['x-invoke-path'] as string
-      const useInvokePath =
-        !useMatchedPathHeader &&
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        invokePath
+      let finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
+      if (finished) return
 
-      if (useInvokePath) {
-        if (req.headers['x-invoke-status']) {
-          const invokeQuery = req.headers['x-invoke-query']
-
-          if (typeof invokeQuery === 'string') {
-            Object.assign(
-              parsedUrl.query,
-              JSON.parse(decodeURIComponent(invokeQuery))
-            )
-          }
-
-          res.statusCode = Number(req.headers['x-invoke-status'])
-          let err: Error | null = null
-
-          if (typeof req.headers['x-invoke-error'] === 'string') {
-            const invokeError = JSON.parse(
-              req.headers['x-invoke-error'] || '{}'
-            )
-            err = new Error(invokeError.message)
-          }
-
-          return this.renderError(err, req, res, '/_error', parsedUrl.query)
-        }
-
-        const parsedMatchedPath = new URL(invokePath || '/', 'http://n')
-        const invokePathnameInfo = getNextPathnameInfo(
-          parsedMatchedPath.pathname,
-          {
-            nextConfig: this.nextConfig,
-            parseData: false,
-          }
-        )
-
-        if (invokePathnameInfo.locale) {
-          parsedUrl.query.__nextLocale = invokePathnameInfo.locale
-        }
-
-        if (parsedUrl.pathname !== parsedMatchedPath.pathname) {
-          parsedUrl.pathname = parsedMatchedPath.pathname
-          addRequestMeta(req, 'rewroteURL', invokePathnameInfo.pathname)
-        }
-        const normalizeResult = normalizeLocalePath(
-          removePathPrefix(parsedUrl.pathname, this.nextConfig.basePath || ''),
-          this.nextConfig.i18n?.locales || []
-        )
-
-        if (normalizeResult.detectedLocale) {
-          parsedUrl.query.__nextLocale = normalizeResult.detectedLocale
-        }
-        parsedUrl.pathname = normalizeResult.pathname
-
-        for (const key of Object.keys(parsedUrl.query)) {
-          if (!key.startsWith('__next') && !key.startsWith('_next')) {
-            delete parsedUrl.query[key]
-          }
-        }
-        const invokeQuery = req.headers['x-invoke-query']
-
-        if (typeof invokeQuery === 'string') {
-          Object.assign(
-            parsedUrl.query,
-            JSON.parse(decodeURIComponent(invokeQuery))
-          )
-        }
-
-        finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
-        if (finished) return
-
-        await this.handleCatchallRenderRequest(req, res, parsedUrl)
-        return
-      }
-
+      // Handle middleware requests.
       if (
         process.env.NEXT_RUNTIME !== 'edge' &&
         req.headers['x-middleware-invoke']
       ) {
-        finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
-        if (finished) return
-
         finished = await this.handleCatchallMiddlewareRequest(
           req,
           res,
@@ -1366,32 +926,21 @@ export default abstract class Server<
         )
         if (finished) return
 
-        const err = new Error()
-        ;(err as any).result = {
+        throw new BubbledError(true, {
           response: new Response(null, {
-            headers: {
-              'x-middleware-next': '1',
-            },
+            headers: { 'x-middleware-next': '1' },
           }),
-        }
-        ;(err as any).bubble = true
-        throw err
-      }
-
-      // This wasn't a request via the matched path or the invoke path, so
-      // prepare for a legacy run by removing the base path.
-
-      // ensure we strip the basePath when not using an invoke header
-      if (!useMatchedPathHeader && pathnameInfo.basePath) {
-        parsedUrl.pathname = removePathPrefix(
-          parsedUrl.pathname,
-          pathnameInfo.basePath
-        )
+        })
       }
 
       res.statusCode = 200
       return await this.run(req, res, parsedUrl)
     } catch (err: any) {
+      if (err instanceof InvokeError) {
+        res.statusCode = err.statusCode
+        return this.renderError(err.cause, req, res, '/_error', {})
+      }
+
       if (err instanceof NoFallbackError) {
         throw err
       }
@@ -1416,47 +965,6 @@ export default abstract class Server<
       res.statusCode = 500
       res.body('Internal Server Error').send()
     }
-  }
-
-  /**
-   * Normalizes a pathname without attaching any metadata from any matched
-   * normalizer.
-   *
-   * @param pathname the pathname to normalize
-   * @returns the normalized pathname
-   */
-  private normalize = (pathname: string) => {
-    const normalizers: Array<PathnameNormalizer> = []
-
-    if (this.normalizers.data) {
-      normalizers.push(this.normalizers.data)
-    }
-
-    if (this.normalizers.postponed) {
-      normalizers.push(this.normalizers.postponed)
-    }
-
-    // We have to put the prefetch normalizer before the RSC normalizer
-    // because the RSC normalizer will match the prefetch RSC routes too.
-    if (this.normalizers.prefetchRSC) {
-      normalizers.push(this.normalizers.prefetchRSC)
-    }
-
-    if (this.normalizers.rsc) {
-      normalizers.push(this.normalizers.rsc)
-    }
-
-    if (this.normalizers.action) {
-      normalizers.push(this.normalizers.action)
-    }
-
-    for (const normalizer of normalizers) {
-      if (!normalizer.match(pathname)) continue
-
-      return normalizer.normalize(pathname, true)
-    }
-
-    return pathname
   }
 
   private normalizeAndAttachMetadata: RouteHandler<
@@ -2134,8 +1642,8 @@ export default abstract class Server<
 
     urlPathname = removeTrailingSlash(urlPathname)
     resolvedUrlPathname = removeTrailingSlash(resolvedUrlPathname)
-    if (this.localeNormalizer) {
-      resolvedUrlPathname = this.localeNormalizer.normalize(resolvedUrlPathname)
+    if (this.i18nNormalizer) {
+      resolvedUrlPathname = this.i18nNormalizer.normalize(resolvedUrlPathname)
     }
 
     const handleRedirect = (pageData: any) => {
@@ -3078,8 +2586,8 @@ export default abstract class Server<
       path = denormalizePagePath(splitPath.replace(/\.json$/, ''))
     }
 
-    if (this.localeNormalizer && stripLocale) {
-      return this.localeNormalizer.normalize(path)
+    if (this.i18nNormalizer && stripLocale) {
+      return this.i18nNormalizer.normalize(path)
     }
     return path
   }
