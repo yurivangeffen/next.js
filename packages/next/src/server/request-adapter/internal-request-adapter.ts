@@ -1,7 +1,7 @@
 import type { BaseNextRequest } from '../base-http'
 
+import querystring from 'querystring'
 import { addRequestMeta, type NextUrlWithParsedQuery } from '../request-meta'
-import querystring from 'node:querystring'
 import { BaseRequestAdapter } from './base-request-adapter'
 
 export class InvokeError {

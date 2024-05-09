@@ -193,7 +193,10 @@ export class MinimalRequestAdapter<ServerRequest extends BaseNextRequest>
     req: ServerRequest,
     parsedURL: NextUrlWithParsedQuery
   ): Promise<void> {
-    if (typeof req.headers['x-matched-path'] !== 'string') {
+    if (
+      !req.headers['x-matched-path'] ||
+      typeof req.headers['x-matched-path'] !== 'string'
+    ) {
       throw new Error(
         'Invariant: x-matched-path header is not present but we are in minimal mode'
       )

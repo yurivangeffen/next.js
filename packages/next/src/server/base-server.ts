@@ -550,7 +550,7 @@ export default abstract class Server<
     this.responseCache = this.getResponseCache({ dev })
 
     // Setup the request adapter.
-    if (this.minimalMode) {
+    if (minimalMode && process.env.NEXT_RUNTIME !== 'edge') {
       this.requestAdapter = new MinimalRequestAdapter(
         this.buildId,
         this.enabledDirectories,

@@ -12,7 +12,7 @@ import { getHostname } from '../../shared/lib/get-hostname'
 import { BasePathPathnameNormalizer } from '../future/normalizers/request/base-path'
 import { I18nPathnameNormalizer } from '../future/normalizers/request/i18n-route-normalizer'
 import { addRequestMeta, type NextUrlWithParsedQuery } from '../request-meta'
-import { parse, format } from 'node:url'
+import { parse, format } from 'url'
 
 export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
   implements RequestAdapter<ServerRequest>
