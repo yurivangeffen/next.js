@@ -36,6 +36,35 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
   }
 
   public async adapt(req: ServerRequest, parsedURL: NextUrlWithParsedQuery) {
+    // Analyze the URL for locale information. If we modify it, we should
+    // reconstruct it.
+    let url = parse(req.url)
+    if (!url.pathname) {
+      throw new Error('Invariant: pathname must be set')
+    }
+
+    let modified = false
+    if (this.normalizers.basePath) {
+      const pathname = this.normalizers.basePath.normalize(url.pathname)
+      if (pathname !== url.pathname) {
+        url.pathname = pathname
+        modified = true
+      }
+    }
+
+    if (this.i18nProvider) {
+      const { pathname } = this.i18nProvider.analyze(url.pathname)
+      if (pathname !== url.pathname) {
+        url.pathname = pathname
+        addRequestMeta(req, 'didStripLocale', true)
+        modified = true
+      }
+    }
+
+    if (modified) {
+      req.url = format(url)
+    }
+
     if (!parsedURL.pathname) {
       throw new Error('Invariant: pathname must be set')
     }
@@ -60,13 +89,6 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
 
       if (parsedURL.pathname !== localeAnalysisResult.pathname) {
         parsedURL.pathname = localeAnalysisResult.pathname
-        addRequestMeta(req, 'didStripLocale', true)
-
-        // Update the URL with the new pathname if it had a locale.
-        req.url = format({
-          ...parse(req.url),
-          pathname: parsedURL.pathname,
-        })
       }
 
       if (localeAnalysisResult.detectedLocale) {

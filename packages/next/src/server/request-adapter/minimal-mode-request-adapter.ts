@@ -31,6 +31,7 @@ import {
 } from '../../client/components/app-router-headers'
 import { checkIsAppPPREnabled } from '../lib/experimental/ppr'
 import { BasePathPathnameNormalizer } from '../future/normalizers/request/base-path'
+import { format, parse } from 'url'
 
 export class MinimalRequestAdapter<ServerRequest extends BaseNextRequest>
   implements RequestAdapter<ServerRequest>
@@ -206,11 +207,30 @@ export class MinimalRequestAdapter<ServerRequest extends BaseNextRequest>
       throw new Error('Invariant: pathname must be set')
     }
 
-    if (this.normalizers.basePath) {
-      req.url = this.normalizers.basePath.normalize(req.url)
+    const url = parse(req.url)
+    if (!url.pathname) {
+      throw new Error('Invariant: pathname must be set')
     }
 
-    const i18n = this.i18nProvider?.analyze(parsedURL.pathname)
+    if (this.normalizers.basePath) {
+      const pathname = this.normalizers.basePath.normalize(url.pathname)
+      if (pathname !== url.pathname) {
+        url.pathname = pathname
+
+        // We've modified the URL, so we need to update the request URL.
+        req.url = format(url)
+      }
+    }
+
+    let detectedLocale: string | undefined
+    if (this.i18nProvider) {
+      const result = this.i18nProvider.analyze(url.pathname)
+      if (result.pathname !== url.pathname) {
+        detectedLocale = result.detectedLocale
+        url.pathname = result.pathname
+        addRequestMeta(req, 'didStripLocale', true)
+      }
+    }
 
     this.attachRSCRequestMetadata(req, parsedURL)
 
@@ -283,19 +303,19 @@ export class MinimalRequestAdapter<ServerRequest extends BaseNextRequest>
       domainLocale?.defaultLocale ?? this.i18nProvider?.config.defaultLocale
 
     // Perform locale detection and normalization.
-    const localeAnalysisResult = this.i18nProvider?.analyze(matchedPath, {
+    const matchedPathI18n = this.i18nProvider?.analyze(matchedPath, {
       defaultLocale,
     })
 
     // The locale result will be defined even if the locale was not
     // detected for the request because it will be inferred from the
     // default locale.
-    if (localeAnalysisResult) {
-      parsedURL.query.__nextLocale = localeAnalysisResult.detectedLocale
+    if (matchedPathI18n) {
+      parsedURL.query.__nextLocale = matchedPathI18n.detectedLocale
 
       // If the detected locale was inferred from the default locale, we
       // need to modify the metadata on the request to indicate that.
-      if (localeAnalysisResult.inferredFromDefault) {
+      if (matchedPathI18n.inferredFromDefault) {
         parsedURL.query.__nextInferredLocaleFromDefault = '1'
       } else {
         delete parsedURL.query.__nextInferredLocaleFromDefault
@@ -310,7 +330,7 @@ export class MinimalRequestAdapter<ServerRequest extends BaseNextRequest>
 
     if (!pageIsDynamic) {
       const match = await this.matchers.match(srcPathname, {
-        i18n: localeAnalysisResult,
+        i18n: matchedPathI18n,
       })
 
       // Update the source pathname to the matched page's pathname.
@@ -324,8 +344,8 @@ export class MinimalRequestAdapter<ServerRequest extends BaseNextRequest>
     // The rest of this function can't handle i18n properly, so ensure we
     // restore the pathname with the locale information stripped from it
     // now that we're done matching if we're using i18n.
-    if (localeAnalysisResult) {
-      matchedPath = localeAnalysisResult.pathname
+    if (matchedPathI18n) {
+      matchedPath = matchedPathI18n.pathname
     }
 
     const utils = getUtils({
@@ -343,7 +363,7 @@ export class MinimalRequestAdapter<ServerRequest extends BaseNextRequest>
 
     // Ensure parsedUrl.pathname includes locale before processing
     // rewrites or they won't match correctly.
-    if (defaultLocale && !i18n?.detectedLocale) {
+    if (defaultLocale && !detectedLocale) {
       parsedURL.pathname = `/${defaultLocale}${parsedURL.pathname}`
     }
 
@@ -455,10 +475,16 @@ export class MinimalRequestAdapter<ServerRequest extends BaseNextRequest>
 
     parsedURL.pathname = matchedPath
 
+    // Update the URL with the new pathname if it had a locale.
+    if (detectedLocale) {
+      url.pathname = parsedURL.pathname
+      req.url = format(url)
+    }
+
     if (!parsedURL.query.__nextLocale) {
       // If the locale is in the pathname, add it to the query string.
-      if (i18n?.detectedLocale) {
-        parsedURL.query.__nextLocale = i18n.detectedLocale
+      if (detectedLocale) {
+        parsedURL.query.__nextLocale = detectedLocale
       }
       // If the default locale is available, add it to the query string and
       // mark it as inferred rather than implicit.
