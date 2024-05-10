@@ -1,6 +1,5 @@
 import type { BaseNextRequest } from '../base-http'
 
-import querystring from 'querystring'
 import {
   addRequestMeta,
   type NextParsedUrlQuery,
@@ -36,10 +35,7 @@ export class InternalRequestAdapter<
     // Apply the query parameters from the x-invoke-query header.
     const query = req.headers['x-invoke-query']
     if (typeof query === 'string') {
-      Object.assign(
-        parsedURL.query,
-        querystring.parse(decodeURIComponent(query))
-      )
+      Object.assign(parsedURL.query, JSON.parse(decodeURIComponent(query)))
     }
 
     // If a status is provided, assume that it's an error.
