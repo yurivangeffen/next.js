@@ -952,7 +952,7 @@ export default abstract class Server<
     } catch (err: any) {
       if (err instanceof InvokeError) {
         res.statusCode = err.statusCode
-        return this.renderError(err.cause, req, res, '/_error', {})
+        return this.renderError(err.cause, req, res, '/_error', err.query)
       }
 
       if (err instanceof NoFallbackError) {

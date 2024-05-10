@@ -1,13 +1,18 @@
 import type { BaseNextRequest } from '../base-http'
 
 import querystring from 'querystring'
-import { addRequestMeta, type NextUrlWithParsedQuery } from '../request-meta'
+import {
+  addRequestMeta,
+  type NextParsedUrlQuery,
+  type NextUrlWithParsedQuery,
+} from '../request-meta'
 import { BaseRequestAdapter } from './base-request-adapter'
 
 export class InvokeError {
   constructor(
     public readonly statusCode: number,
-    public readonly cause: Error | null
+    public readonly cause: Error | null,
+    public readonly query: NextParsedUrlQuery
   ) {}
 }
 
@@ -43,10 +48,15 @@ export class InternalRequestAdapter<
 
       let cause: Error | null = null
       if (typeof req.headers['x-invoke-error'] === 'string') {
-        cause = new Error(req.headers['x-invoke-error'])
+        try {
+          const { message } = JSON.parse(req.headers['x-invoke-error'])
+          cause = new Error(message)
+        } catch {
+          cause = new Error()
+        }
       }
 
-      throw new InvokeError(statusCode, cause)
+      throw new InvokeError(statusCode, cause, parsedURL.query)
     }
 
     // Save a copy of the original unmodified pathname so we can see if we
