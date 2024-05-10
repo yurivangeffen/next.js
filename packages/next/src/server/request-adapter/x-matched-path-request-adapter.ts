@@ -128,19 +128,19 @@ export class XMatchedPathRequestAdapter<
 
   protected attachRSCRequestMetadata(
     req: ServerRequest,
-    parsedUrl: NextUrlWithParsedQuery
+    parsedURL: NextUrlWithParsedQuery
   ): void {
     // If there's no pathname, we can't do anything.
-    if (!parsedUrl.pathname) {
+    if (!parsedURL.pathname) {
       throw new Error('Invariant: pathname is required')
     }
 
     // If app directory isn't enabled, we can't do anything.
     if (!this.enabledDirectories.app) return
 
-    if (this.normalizers.prefetchRSC?.match(parsedUrl.pathname)) {
-      parsedUrl.pathname = this.normalizers.prefetchRSC.normalize(
-        parsedUrl.pathname,
+    if (this.normalizers.prefetchRSC?.match(parsedURL.pathname)) {
+      parsedURL.pathname = this.normalizers.prefetchRSC.normalize(
+        parsedURL.pathname,
         true
       )
 
@@ -149,9 +149,9 @@ export class XMatchedPathRequestAdapter<
       req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
       addRequestMeta(req, 'isRSCRequest', true)
       addRequestMeta(req, 'isPrefetchRSCRequest', true)
-    } else if (this.normalizers.rsc?.match(parsedUrl.pathname)) {
-      parsedUrl.pathname = this.normalizers.rsc.normalize(
-        parsedUrl.pathname,
+    } else if (this.normalizers.rsc?.match(parsedURL.pathname)) {
+      parsedURL.pathname = this.normalizers.rsc.normalize(
+        parsedURL.pathname,
         true
       )
 
@@ -180,11 +180,11 @@ export class XMatchedPathRequestAdapter<
 
     // If we're here, this is a data request, as it didn't return and it matched
     // either a RSC or a prefetch RSC request.
-    parsedUrl.query.__nextDataReq = '1'
+    parsedURL.query.__nextDataReq = '1'
 
     if (req.url) {
       const parsed = parseUrl(req.url)
-      parsed.pathname = parsedUrl.pathname
+      parsed.pathname = parsedURL.pathname
       req.url = formatUrl(parsed)
     }
   }
@@ -198,7 +198,7 @@ export class XMatchedPathRequestAdapter<
       typeof req.headers['x-matched-path'] !== 'string'
     ) {
       // 'x-matched-path' is not present, let's fallback to the base adapter.
-      return super.adaptRequest(req)
+      return super.adaptRequest(req, parsedURL)
     }
 
     if (!parsedURL.pathname) {
@@ -239,14 +239,14 @@ export class XMatchedPathRequestAdapter<
         parsedURL.pathname === '/index' ? '/' : parsedURL.pathname
     }
 
+    let { pathname: urlPathname } = new URL(req.url, 'http://localhost')
+
     // x-matched-path is the source of truth, it tells what page
     // should be rendered because we don't process rewrites in minimalMode
     let { pathname: matchedPath } = new URL(
       req.headers['x-matched-path'],
       'http://localhost'
     )
-
-    let { pathname: urlPathname } = new URL(req.url, 'http://localhost')
 
     // For ISR the URL is normalized to the prerenderPath so if
     // it's a data request the URL path will be the data URL,
@@ -356,7 +356,7 @@ export class XMatchedPathRequestAdapter<
       caseSensitive: !!this.nextConfig.experimental.caseSensitiveRoutes,
     })
 
-    // Ensure parsedUrl.pathname includes locale before processing
+    // Ensure parsedURL.pathname includes locale before processing
     // rewrites or they won't match correctly.
     if (defaultLocale && !detectedLocale) {
       parsedURL.pathname = `/${defaultLocale}${parsedURL.pathname}`

@@ -28,7 +28,7 @@ export class XInvokePathRequestAdapter<
       typeof invokePath !== 'string' ||
       req.headers['x-middleware-invoke']
     ) {
-      return this.adaptRequest(req)
+      return this.adaptRequest(req, parsedURL)
     }
 
     // Strip any internal query parameters from the query object that aren't

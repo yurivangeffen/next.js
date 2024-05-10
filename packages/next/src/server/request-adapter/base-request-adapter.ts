@@ -36,13 +36,13 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
     }
   }
 
-  protected adaptRequest(req: ServerRequest) {
+  protected adaptRequest(
+    req: ServerRequest,
+    parsedURL: NextUrlWithParsedQuery
+  ) {
     // Analyze the URL for locale information. If we modify it, we should
     // reconstruct it.
     let url = parseUrl(req.url)
-    if (!url.pathname) {
-      throw new Error('Invariant: pathname must be set')
-    }
 
     let modified = false
     if (this.normalizers.basePath) {
@@ -66,19 +66,27 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
       req.url = format(url)
     }
 
-    if (this.enabledDirectories.app) {
-      if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
-        addRequestMeta(req, 'isRSCRequest', true)
-      }
+    this.attachRSCRequestMetadata(req, parsedURL)
+  }
 
-      if (req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1') {
-        addRequestMeta(req, 'isPrefetchRSCRequest', true)
-      }
+  protected attachRSCRequestMetadata(
+    req: ServerRequest,
+    parsedURL: NextUrlWithParsedQuery
+  ): void
+  protected attachRSCRequestMetadata(req: ServerRequest): void {
+    if (!this.enabledDirectories.app) return
+
+    if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
+      addRequestMeta(req, 'isRSCRequest', true)
+    }
+
+    if (req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1') {
+      addRequestMeta(req, 'isPrefetchRSCRequest', true)
     }
   }
 
   public async adapt(req: ServerRequest, parsedURL: NextUrlWithParsedQuery) {
-    this.adaptRequest(req)
+    this.adaptRequest(req, parsedURL)
 
     if (!parsedURL.pathname) {
       throw new Error('Invariant: pathname must be set')
