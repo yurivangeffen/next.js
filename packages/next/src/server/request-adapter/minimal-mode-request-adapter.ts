@@ -5,7 +5,6 @@ import type {
   NormalizedRouteManifest,
 } from '../base-server'
 import type { PathnameNormalizer } from '../future/normalizers/request/pathname-normalizer'
-import type { RequestAdapter } from './request-adapter'
 import type { I18NProvider } from '../future/helpers/i18n-provider'
 import type { RouteMatcherManager } from '../future/route-matcher-managers/route-matcher-manager'
 import type { NextConfigComplete } from '../config-shared'
