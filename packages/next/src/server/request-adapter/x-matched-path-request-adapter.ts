@@ -198,7 +198,7 @@ export class XMatchedPathRequestAdapter<
       typeof req.headers['x-matched-path'] !== 'string'
     ) {
       // 'x-matched-path' is not present, let's fallback to the base adapter.
-      return super.adapt(req, parsedURL)
+      return super.adaptURL(req)
     }
 
     if (!parsedURL.pathname) {
