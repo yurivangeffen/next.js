@@ -32,11 +32,12 @@ import {
 import { checkIsAppPPREnabled } from '../lib/experimental/ppr'
 import { BasePathPathnameNormalizer } from '../future/normalizers/request/base-path'
 import { format, parse } from 'url'
+import { BaseRequestAdapter } from './base-request-adapter'
 
-export class MinimalRequestAdapter<ServerRequest extends BaseNextRequest>
-  implements RequestAdapter<ServerRequest>
-{
-  private readonly normalizers: {
+export class MinimalRequestAdapter<
+  ServerRequest extends BaseNextRequest,
+> extends BaseRequestAdapter<ServerRequest> {
+  protected readonly normalizers: {
     readonly basePath: BasePathPathnameNormalizer | undefined
     readonly action: ActionPathnameNormalizer | undefined
     readonly postponed: PostponedPathnameNormalizer | undefined
@@ -48,14 +49,16 @@ export class MinimalRequestAdapter<ServerRequest extends BaseNextRequest>
 
   constructor(
     private readonly buildID: string,
-    private readonly enabledDirectories: NextEnabledDirectories,
-    private readonly i18nProvider: I18NProvider | undefined,
+    enabledDirectories: NextEnabledDirectories,
+    i18nProvider: I18NProvider | undefined,
     private readonly matchers: RouteMatcherManager,
-    private readonly nextConfig: NextConfigComplete,
+    nextConfig: NextConfigComplete,
     private readonly getRoutesManifest: () =>
       | NormalizedRouteManifest
       | undefined
   ) {
+    super(enabledDirectories, i18nProvider, nextConfig)
+
     const isAppPPREnabled = checkIsAppPPREnabled(
       this.nextConfig.experimental.ppr
     )
@@ -198,9 +201,8 @@ export class MinimalRequestAdapter<ServerRequest extends BaseNextRequest>
       !req.headers['x-matched-path'] ||
       typeof req.headers['x-matched-path'] !== 'string'
     ) {
-      throw new Error(
-        'Invariant: x-matched-path header is not present but we are in minimal mode'
-      )
+      // 'x-matched-path' is not present, let's fallback to the base adapter.
+      return super.adapt(req, parsedURL)
     }
 
     if (!parsedURL.pathname) {
