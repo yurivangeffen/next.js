@@ -1131,7 +1131,10 @@ export default class NextNodeServer extends BaseServer<
 
           if (!routeMatch || isMiddlewareRequest) return
 
+          // NOTE: this is only attached after handle has started, this runs
+          // after the response has been sent, so it should have it set.
           const isRSC = isRSCRequestCheck(normalizedReq)
+
           const reqEnd = Date.now()
           const fetchMetrics = normalizedReq.fetchMetrics || []
           const reqDuration = reqEnd - reqStart

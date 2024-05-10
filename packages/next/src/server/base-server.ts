@@ -3125,6 +3125,19 @@ export default abstract class Server<
   }
 }
 
+/**
+ * Check if the request is a RSC request. This is only attached after the
+ * `handle` method is called, or at least the `requestAdapter.adapt` is called
+ * on the request.
+ */
 export function isRSCRequestCheck(req: BaseNextRequest): boolean {
-  return getRequestMeta(req, 'isRSCRequest') === true
+  const isRSCRequest = getRequestMeta(req, 'isRSCRequest')
+  if (typeof isRSCRequest !== 'boolean') {
+    // If the RSC request metadata is missing, then we should throw an error. It
+    // means it's being called before it's checked (which will lead to false
+    // negatives).
+    throw new Error('Invariant: missing isRSCRequest metadata')
+  }
+
+  return isRSCRequest
 }
