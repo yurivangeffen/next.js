@@ -19,11 +19,16 @@ export class XInvokePathRequestAdapter<
   ServerRequest extends BaseNextRequest,
 > extends BaseRequestAdapter<ServerRequest> {
   public async adapt(req: ServerRequest, parsedURL: NextUrlWithParsedQuery) {
+    // If we're invoking middleware, adapt it using the middleware adapter.
+    if (req.headers['x-middleware-invoke']) {
+      return this.adaptURL(req)
+    }
+
     const invokePath = req.headers['x-invoke-path']
 
     // If there's no path to invoke, just adapt using the base adapter.
     if (!invokePath || typeof invokePath !== 'string') {
-      return super.adapt(req, parsedURL)
+      return this.adaptURL(req)
     }
 
     // Strip any internal query parameters from the query object that aren't
@@ -62,9 +67,7 @@ export class XInvokePathRequestAdapter<
     const originalPathname = parsedURL.pathname
 
     // If it differs from the invoke path, rewrite the pathname.
-    if (parsedURL.pathname !== invokePath) {
-      parsedURL.pathname = invokePath
-    }
+    parsedURL.pathname = invokePath
 
     // Adapt using the base adapter.
     await super.adapt(req, parsedURL)

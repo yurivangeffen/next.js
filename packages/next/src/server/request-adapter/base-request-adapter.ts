@@ -35,7 +35,7 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
     }
   }
 
-  public async adapt(req: ServerRequest, parsedURL: NextUrlWithParsedQuery) {
+  protected adaptURL(req: ServerRequest) {
     // Analyze the URL for locale information. If we modify it, we should
     // reconstruct it.
     let url = parse(req.url)
@@ -64,6 +64,10 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
     if (modified) {
       req.url = format(url)
     }
+  }
+
+  public async adapt(req: ServerRequest, parsedURL: NextUrlWithParsedQuery) {
+    this.adaptURL(req)
 
     if (!parsedURL.pathname) {
       throw new Error('Invariant: pathname must be set')
