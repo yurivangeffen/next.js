@@ -77,10 +77,7 @@ export class XMatchedPathRequestAdapter<
       action: enabledDirectories.app
         ? new ActionPathnameNormalizer()
         : undefined,
-      rsc:
-        enabledDirectories.app && !isAppPPREnabled
-          ? new RSCPathnameNormalizer()
-          : undefined,
+      rsc: enabledDirectories.app ? new RSCPathnameNormalizer() : undefined,
       data: enabledDirectories.pages
         ? new NextDataPathnameNormalizer(this.buildID)
         : undefined,
