@@ -550,7 +550,7 @@ export default abstract class Server<
     this.responseCache = this.getResponseCache({ dev })
 
     // Setup the request adapter.
-    if (minimalMode && process.env.NEXT_RUNTIME !== 'edge') {
+    if (this.minimalMode && process.env.NEXT_RUNTIME !== 'edge') {
       this.requestAdapter = new MinimalRequestAdapter(
         this.buildId,
         this.enabledDirectories,
@@ -559,7 +559,7 @@ export default abstract class Server<
         this.nextConfig,
         this.getRoutesManifest.bind(this)
       )
-    } else if (process.env.NEXT_RUNTIME !== 'edge') {
+    } else if (!customServer && process.env.NEXT_RUNTIME !== 'edge') {
       this.requestAdapter = new InternalRequestAdapter(
         this.enabledDirectories,
         this.i18nProvider,
@@ -934,7 +934,21 @@ export default abstract class Server<
       }
 
       res.statusCode = 200
-      return await this.run(req, res, parsedUrl)
+
+      // If we aren't in minimal mode, this isn't a custom server, and we aren't
+      // in the edge runtime, we should use the handle method directly, as this
+      // has been routed by Next.js.
+      if (
+        !this.minimalMode &&
+        !this.renderOpts.customServer &&
+        process.env.NEXT_RUNTIME !== 'edge'
+      ) {
+        await this.handleCatchallRenderRequest(req, res, parsedUrl)
+      } else {
+        await this.run(req, res, parsedUrl)
+      }
+
+      return
     } catch (err: any) {
       if (err instanceof InvokeError) {
         res.statusCode = err.statusCode
