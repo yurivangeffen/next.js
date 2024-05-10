@@ -33,7 +33,7 @@ import { BasePathPathnameNormalizer } from '../future/normalizers/request/base-p
 import { format, parse } from 'url'
 import { BaseRequestAdapter } from './base-request-adapter'
 
-export class MinimalRequestAdapter<
+export class XMatchedPathRequestAdapter<
   ServerRequest extends BaseNextRequest,
 > extends BaseRequestAdapter<ServerRequest> {
   protected readonly normalizers: {
