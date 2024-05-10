@@ -135,9 +135,6 @@ export class XMatchedPathRequestAdapter<
       throw new Error('Invariant: pathname is required')
     }
 
-    // If app directory isn't enabled, we can't do anything.
-    if (!this.enabledDirectories.app) return
-
     if (this.normalizers.prefetchRSC?.match(parsedURL.pathname)) {
       parsedURL.pathname = this.normalizers.prefetchRSC.normalize(
         parsedURL.pathname,

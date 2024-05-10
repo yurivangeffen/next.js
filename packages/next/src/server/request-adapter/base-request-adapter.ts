@@ -74,18 +74,18 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
     parsedURL: NextUrlWithParsedQuery
   ): void
   protected attachRSCRequestMetadata(req: ServerRequest): void {
-    if (!this.enabledDirectories.app) return
-
     addRequestMeta(
       req,
       'isRSCRequest',
-      req.headers[RSC_HEADER.toLowerCase()] === '1'
+      this.enabledDirectories.app &&
+        req.headers[RSC_HEADER.toLowerCase()] === '1'
     )
 
     addRequestMeta(
       req,
       'isPrefetchRSCRequest',
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1'
+      this.enabledDirectories.app &&
+        req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1'
     )
   }
 
