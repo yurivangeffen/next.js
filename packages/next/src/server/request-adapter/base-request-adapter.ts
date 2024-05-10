@@ -61,6 +61,12 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
       if (parsedURL.pathname !== localeAnalysisResult.pathname) {
         parsedURL.pathname = localeAnalysisResult.pathname
         addRequestMeta(req, 'didStripLocale', true)
+
+        // Update the URL with the new pathname if it had a locale.
+        req.url = format({
+          ...parse(req.url),
+          pathname: parsedURL.pathname,
+        })
       }
 
       if (localeAnalysisResult.detectedLocale) {
@@ -81,11 +87,5 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
         addRequestMeta(req, 'isPrefetchRSCRequest', true)
       }
     }
-
-    // Update the URL with the new pathname.
-    req.url = format({
-      ...parse(req.url),
-      pathname: parsedURL.pathname,
-    })
   }
 }
