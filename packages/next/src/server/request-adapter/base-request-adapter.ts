@@ -12,7 +12,8 @@ import { getHostname } from '../../shared/lib/get-hostname'
 import { BasePathPathnameNormalizer } from '../future/normalizers/request/base-path'
 import { I18nPathnameNormalizer } from '../future/normalizers/request/i18n-route-normalizer'
 import { addRequestMeta, type NextUrlWithParsedQuery } from '../request-meta'
-import { parse, format } from 'url'
+import { format } from 'url'
+import { parseUrl } from '../../shared/lib/router/utils/parse-url'
 
 export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
   implements RequestAdapter<ServerRequest>
@@ -35,10 +36,10 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
     }
   }
 
-  protected adaptURL(req: ServerRequest) {
+  protected adaptRequest(req: ServerRequest) {
     // Analyze the URL for locale information. If we modify it, we should
     // reconstruct it.
-    let url = parse(req.url)
+    let url = parseUrl(req.url)
     if (!url.pathname) {
       throw new Error('Invariant: pathname must be set')
     }
@@ -64,10 +65,20 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
     if (modified) {
       req.url = format(url)
     }
+
+    if (this.enabledDirectories.app) {
+      if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
+        addRequestMeta(req, 'isRSCRequest', true)
+      }
+
+      if (req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1') {
+        addRequestMeta(req, 'isPrefetchRSCRequest', true)
+      }
+    }
   }
 
   public async adapt(req: ServerRequest, parsedURL: NextUrlWithParsedQuery) {
-    this.adaptURL(req)
+    this.adaptRequest(req)
 
     if (!parsedURL.pathname) {
       throw new Error('Invariant: pathname must be set')
@@ -101,16 +112,6 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
 
       if (localeAnalysisResult.inferredFromDefault) {
         parsedURL.query.__nextInferredLocaleFromDefault = '1'
-      }
-    }
-
-    if (this.enabledDirectories.app) {
-      if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
-        addRequestMeta(req, 'isRSCRequest', true)
-      }
-
-      if (req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1') {
-        addRequestMeta(req, 'isPrefetchRSCRequest', true)
       }
     }
   }

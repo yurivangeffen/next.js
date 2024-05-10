@@ -30,7 +30,7 @@ import {
 } from '../../client/components/app-router-headers'
 import { checkIsAppPPREnabled } from '../lib/experimental/ppr'
 import { BasePathPathnameNormalizer } from '../future/normalizers/request/base-path'
-import { format, parse } from 'url'
+import { format } from 'url'
 import { BaseRequestAdapter } from './base-request-adapter'
 
 export class XMatchedPathRequestAdapter<
@@ -198,17 +198,14 @@ export class XMatchedPathRequestAdapter<
       typeof req.headers['x-matched-path'] !== 'string'
     ) {
       // 'x-matched-path' is not present, let's fallback to the base adapter.
-      return super.adaptURL(req)
+      return super.adaptRequest(req)
     }
 
     if (!parsedURL.pathname) {
       throw new Error('Invariant: pathname must be set')
     }
 
-    const url = parse(req.url)
-    if (!url.pathname) {
-      throw new Error('Invariant: pathname must be set')
-    }
+    const url = parseUrl(req.url)
 
     if (this.normalizers.basePath) {
       const pathname = this.normalizers.basePath.normalize(url.pathname)

@@ -19,16 +19,16 @@ export class XInvokePathRequestAdapter<
   ServerRequest extends BaseNextRequest,
 > extends BaseRequestAdapter<ServerRequest> {
   public async adapt(req: ServerRequest, parsedURL: NextUrlWithParsedQuery) {
-    // If we're invoking middleware, adapt it using the middleware adapter.
-    if (req.headers['x-middleware-invoke']) {
-      return this.adaptURL(req)
-    }
-
     const invokePath = req.headers['x-invoke-path']
 
-    // If there's no path to invoke, just adapt using the base adapter.
-    if (!invokePath || typeof invokePath !== 'string') {
-      return this.adaptURL(req)
+    // If there's no path to invoke, or we're just processing middleware, just
+    // normalize the request.
+    if (
+      !invokePath ||
+      typeof invokePath !== 'string' ||
+      req.headers['x-middleware-invoke']
+    ) {
+      return this.adaptRequest(req)
     }
 
     // Strip any internal query parameters from the query object that aren't
