@@ -3136,14 +3136,6 @@ export function isRSCRequestCheck(req: BaseNextRequest): boolean {
   if (process.env.NEXT_RUNTIME === 'edge') {
     return req.headers[RSC_HEADER.toLowerCase()] === '1'
   } else {
-    const isRSCRequest = getRequestMeta(req, 'isRSCRequest')
-    if (typeof isRSCRequest !== 'boolean') {
-      // If the RSC request metadata is missing, then we should throw an error. It
-      // means it's being called before it's checked (which will lead to false
-      // negatives).
-      throw new Error('Invariant: missing isRSCRequest metadata')
-    }
-
-    return isRSCRequest
+    return getRequestMeta(req, 'isRSCRequest') === true
   }
 }
