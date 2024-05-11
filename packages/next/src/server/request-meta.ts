@@ -71,12 +71,12 @@ export interface RequestMeta {
   /**
    * True when the request is for the prefetch flight data.
    */
-  isPrefetchRSCRequest?: boolean
+  isPrefetchRSCRequest?: true
 
   /**
    * True when the request is for the flight data.
    */
-  isRSCRequest?: boolean
+  isRSCRequest?: true
 
   /**
    * Postponed state to use for resumption. If present it's assumed that the

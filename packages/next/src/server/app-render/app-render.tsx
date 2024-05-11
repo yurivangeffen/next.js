@@ -793,11 +793,11 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
-  const isRSCRequest = req.headers[RSC_HEADER.toLowerCase()] !== undefined
+  const isRSCRequest = req.headers[RSC_HEADER.toLowerCase()] === '1'
 
   const isPrefetchRSCRequest =
     isRSCRequest &&
-    req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
+    req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1'
 
   /**
    * Router state provided from the client-side router. Used to handle rendering

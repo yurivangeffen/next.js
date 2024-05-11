@@ -5,7 +5,10 @@ import type {
   NormalizedRouteManifest,
 } from '../base-server'
 import type { PathnameNormalizer } from '../future/normalizers/request/pathname-normalizer'
-import type { I18NProvider } from '../future/helpers/i18n-provider'
+import type {
+  I18NProvider,
+  LocaleAnalysisResult,
+} from '../future/helpers/i18n-provider'
 import type { RouteMatcherManager } from '../future/route-matcher-managers/route-matcher-manager'
 import type { NextConfigComplete } from '../config-shared'
 
@@ -130,9 +133,8 @@ export class XMatchedPathRequestAdapter<
     req: ServerRequest,
     parsedURL: NextUrlWithParsedQuery
   ): void {
-    // If there's no pathname, we can't do anything.
     if (!parsedURL.pathname) {
-      throw new Error('Invariant: pathname is required')
+      throw new Error('Invariant: pathname must be set')
     }
 
     if (this.normalizers.prefetchRSC?.match(parsedURL.pathname)) {
@@ -154,36 +156,26 @@ export class XMatchedPathRequestAdapter<
 
       // Mark the request as a RSC request.
       req.headers[RSC_HEADER.toLowerCase()] = '1'
+      delete req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()]
       addRequestMeta(req, 'isRSCRequest', true)
     } else if (req.headers['x-now-route-matches']) {
-      // If we didn't match, return with the flight headers stripped. If in
-      // minimal mode we didn't match based on the path, this can't be a RSC
-      // request. This is because Vercel only sends this header during
-      // revalidation requests and we want the cache to instead depend on the
-      // request path for flight information.
+      // We didn't match any route based matchers above, but we're in minimal
+      // mode, so we should remove any headers from the request that are related
+      // to flight data.
       stripFlightHeaders(req.headers)
 
       return
-    } else if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
-      addRequestMeta(req, 'isRSCRequest', true)
-
-      if (req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1') {
-        addRequestMeta(req, 'isPrefetchRSCRequest', true)
-      }
     } else {
-      // Otherwise just return without doing anything.
-      return
+      return super.attachRSCRequestMetadata(req, parsedURL)
     }
 
     // If we're here, this is a data request, as it didn't return and it matched
     // either a RSC or a prefetch RSC request.
     parsedURL.query.__nextDataReq = '1'
 
-    if (req.url) {
-      const parsed = parseUrl(req.url)
-      parsed.pathname = parsedURL.pathname
-      req.url = formatUrl(parsed)
-    }
+    const parsed = parseUrl(req.url)
+    parsed.pathname = parsedURL.pathname
+    req.url = formatUrl(parsed)
   }
 
   public async adapt(
@@ -202,29 +194,34 @@ export class XMatchedPathRequestAdapter<
       throw new Error('Invariant: pathname must be set')
     }
 
-    const url = parseUrl(req.url)
+    const originalPathname = parsedURL.pathname
+    this.attachRSCRequestMetadata(req, parsedURL)
+
+    const url = parseUrl(req.url.replace(/^\/+/, '/'))
+
+    // If the pathname was updated, we should update the req.url to reflect it.
+    const originalURLPathname = url.pathname
+    if (originalPathname !== parsedURL.pathname) {
+      url.pathname = parsedURL.pathname
+    }
 
     if (this.normalizers.basePath) {
       const pathname = this.normalizers.basePath.normalize(url.pathname)
       if (pathname !== url.pathname) {
         url.pathname = pathname
-
-        // We've modified the URL, so we need to update the request URL.
-        req.url = format(url)
       }
     }
 
-    let detectedLocale: string | undefined
+    // If the pathname was updated, we should update the req.url to reflect it.
+    if (originalURLPathname !== url.pathname) {
+      req.url = format(url)
+    }
+
+    let pathnameInfo: LocaleAnalysisResult | undefined
     if (this.i18nProvider) {
-      const result = this.i18nProvider.analyze(url.pathname)
-      if (result.pathname !== url.pathname) {
-        detectedLocale = result.detectedLocale
-        url.pathname = result.pathname
-        addRequestMeta(req, 'didStripLocale', true)
-      }
+      pathnameInfo = this.i18nProvider.analyze(url.pathname)
+      url.pathname = pathnameInfo.pathname
     }
-
-    this.attachRSCRequestMetadata(req, parsedURL)
 
     if (this.enabledDirectories.app) {
       // ensure /index path is normalized for prerender
@@ -236,14 +233,14 @@ export class XMatchedPathRequestAdapter<
         parsedURL.pathname === '/index' ? '/' : parsedURL.pathname
     }
 
-    let { pathname: urlPathname } = new URL(req.url, 'http://localhost')
-
     // x-matched-path is the source of truth, it tells what page
     // should be rendered because we don't process rewrites in minimalMode
     let { pathname: matchedPath } = new URL(
-      req.headers['x-matched-path'],
+      req.headers['x-matched-path'] as string,
       'http://localhost'
     )
+
+    let { pathname: urlPathname } = new URL(req.url, 'http://localhost')
 
     // For ISR the URL is normalized to the prerenderPath so if
     // it's a data request the URL path will be the data URL,
@@ -295,19 +292,19 @@ export class XMatchedPathRequestAdapter<
       domainLocale?.defaultLocale ?? this.i18nProvider?.config.defaultLocale
 
     // Perform locale detection and normalization.
-    const matchedPathI18n = this.i18nProvider?.analyze(matchedPath, {
+    const localeAnalysisResult = this.i18nProvider?.analyze(matchedPath, {
       defaultLocale,
     })
 
     // The locale result will be defined even if the locale was not
     // detected for the request because it will be inferred from the
     // default locale.
-    if (matchedPathI18n) {
-      parsedURL.query.__nextLocale = matchedPathI18n.detectedLocale
+    if (localeAnalysisResult) {
+      parsedURL.query.__nextLocale = localeAnalysisResult.detectedLocale
 
       // If the detected locale was inferred from the default locale, we
       // need to modify the metadata on the request to indicate that.
-      if (matchedPathI18n.inferredFromDefault) {
+      if (localeAnalysisResult.inferredFromDefault) {
         parsedURL.query.__nextInferredLocaleFromDefault = '1'
       } else {
         delete parsedURL.query.__nextInferredLocaleFromDefault
@@ -322,7 +319,7 @@ export class XMatchedPathRequestAdapter<
 
     if (!pageIsDynamic) {
       const match = await this.matchers.match(srcPathname, {
-        i18n: matchedPathI18n,
+        i18n: localeAnalysisResult,
       })
 
       // Update the source pathname to the matched page's pathname.
@@ -336,8 +333,8 @@ export class XMatchedPathRequestAdapter<
     // The rest of this function can't handle i18n properly, so ensure we
     // restore the pathname with the locale information stripped from it
     // now that we're done matching if we're using i18n.
-    if (matchedPathI18n) {
-      matchedPath = matchedPathI18n.pathname
+    if (localeAnalysisResult) {
+      matchedPath = localeAnalysisResult.pathname
     }
 
     const utils = getUtils({
@@ -355,7 +352,7 @@ export class XMatchedPathRequestAdapter<
 
     // Ensure parsedURL.pathname includes locale before processing
     // rewrites or they won't match correctly.
-    if (defaultLocale && !detectedLocale) {
+    if (defaultLocale && !pathnameInfo?.detectedLocale) {
       parsedURL.pathname = `/${defaultLocale}${parsedURL.pathname}`
     }
 
@@ -466,17 +463,17 @@ export class XMatchedPathRequestAdapter<
     }
 
     parsedURL.pathname = matchedPath
+    url.pathname = matchedPath
 
     // Update the URL with the new pathname if it had a locale.
-    if (detectedLocale) {
-      url.pathname = parsedURL.pathname
+    if (pathnameInfo?.detectedLocale) {
       req.url = format(url)
     }
 
     if (!parsedURL.query.__nextLocale) {
       // If the locale is in the pathname, add it to the query string.
-      if (detectedLocale) {
-        parsedURL.query.__nextLocale = detectedLocale
+      if (pathnameInfo?.detectedLocale) {
+        parsedURL.query.__nextLocale = pathnameInfo.detectedLocale
       }
       // If the default locale is available, add it to the query string and
       // mark it as inferred rather than implicit.
