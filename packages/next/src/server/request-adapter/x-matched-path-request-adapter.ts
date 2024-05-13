@@ -4,7 +4,6 @@ import type {
   NextEnabledDirectories,
   NormalizedRouteManifest,
 } from '../base-server'
-import type { PathnameNormalizer } from '../future/normalizers/request/pathname-normalizer'
 import type {
   I18NProvider,
   LocaleAnalysisResult,
@@ -86,47 +85,6 @@ export class XMatchedPathRequestAdapter<
         : undefined,
       i18n: i18nProvider ? new I18nPathnameNormalizer(i18nProvider) : undefined,
     }
-  }
-
-  /**
-   * Normalizes a pathname without attaching any metadata from any matched
-   * normalizer.
-   *
-   * @param pathname the pathname to normalize
-   * @returns the normalized pathname
-   */
-  private normalize = (pathname: string) => {
-    const normalizers: Array<PathnameNormalizer> = []
-
-    if (this.normalizers.data) {
-      normalizers.push(this.normalizers.data)
-    }
-
-    if (this.normalizers.postponed) {
-      normalizers.push(this.normalizers.postponed)
-    }
-
-    // We have to put the prefetch normalizer before the RSC normalizer
-    // because the RSC normalizer will match the prefetch RSC routes too.
-    if (this.normalizers.prefetchRSC) {
-      normalizers.push(this.normalizers.prefetchRSC)
-    }
-
-    if (this.normalizers.rsc) {
-      normalizers.push(this.normalizers.rsc)
-    }
-
-    if (this.normalizers.action) {
-      normalizers.push(this.normalizers.action)
-    }
-
-    for (const normalizer of normalizers) {
-      if (!normalizer.match(pathname)) continue
-
-      return normalizer.normalize(pathname, true)
-    }
-
-    return pathname
   }
 
   protected attachRSCRequestMetadata(
@@ -274,14 +232,24 @@ export class XMatchedPathRequestAdapter<
       }
     }
 
-    matchedPath = this.normalize(matchedPath)
+    if (this.normalizers.data?.match(matchedPath)) {
+      matchedPath = this.normalizers.data.normalize(matchedPath, true)
+    } else if (this.normalizers.postponed?.match(matchedPath)) {
+      matchedPath = this.normalizers.postponed.normalize(matchedPath, true)
+    } else if (this.normalizers.prefetchRSC?.match(matchedPath)) {
+      matchedPath = this.normalizers.prefetchRSC.normalize(matchedPath, true)
+    } else if (this.normalizers.rsc?.match(matchedPath)) {
+      matchedPath = this.normalizers.rsc.normalize(matchedPath, true)
+    } else if (this.normalizers.action?.match(matchedPath)) {
+      matchedPath = this.normalizers.action.normalize(matchedPath, true)
+    }
 
     let normalizedUrlPath = urlPathname
     if (this.normalizers.data) {
       normalizedUrlPath = this.normalizers.data.normalize(urlPathname)
     }
     if (this.normalizers.i18n) {
-      normalizedUrlPath = this.normalizers.i18n?.normalize(urlPathname)
+      normalizedUrlPath = this.normalizers.i18n.normalize(urlPathname)
     }
 
     const domainLocale = this.i18nProvider?.detectDomainLocale(
