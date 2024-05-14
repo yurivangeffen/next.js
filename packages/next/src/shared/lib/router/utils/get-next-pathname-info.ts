@@ -33,7 +33,7 @@ interface Options {
   /**
    * When passed to true, this function will also parse Nextjs data URLs.
    */
-  stripDataPrefix?: boolean
+  parseData?: boolean
   /**
    * A partial of the Next.js configuration to parse the URL.
    */
@@ -82,7 +82,7 @@ export function getNextPathnameInfo(
 
     // update pathname with normalized if enabled although
     // we use normalized to populate locale info still
-    if (options.stripDataPrefix === true) {
+    if (options.parseData === true) {
       info.pathname = pathnameNoDataPrefix
     }
   }

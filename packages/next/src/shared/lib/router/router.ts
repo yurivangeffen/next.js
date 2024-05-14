@@ -194,7 +194,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
       const parsedRewriteTarget = parseRelativeUrl(rewriteTarget)
       const pathnameInfo = getNextPathnameInfo(parsedRewriteTarget.pathname, {
         nextConfig,
-        stripDataPrefix: true,
+        parseData: true,
       })
 
       let fsPathname = removeTrailingSlash(pathnameInfo.pathname)
@@ -218,7 +218,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
               nextConfig: process.env.__NEXT_HAS_REWRITES
                 ? undefined
                 : nextConfig,
-              stripDataPrefix: true,
+              parseData: true,
             }
           )
 
@@ -273,10 +273,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
     }
     const src = parsePath(source)
     const pathname = formatNextPathnameInfo({
-      ...getNextPathnameInfo(src.pathname, {
-        nextConfig,
-        stripDataPrefix: true,
-      }),
+      ...getNextPathnameInfo(src.pathname, { nextConfig, parseData: true }),
       defaultLocale: options.router.defaultLocale,
       buildId: '',
     })
@@ -293,10 +290,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
     if (redirectTarget.startsWith('/')) {
       const src = parsePath(redirectTarget)
       const pathname = formatNextPathnameInfo({
-        ...getNextPathnameInfo(src.pathname, {
-          nextConfig,
-          stripDataPrefix: true,
-        }),
+        ...getNextPathnameInfo(src.pathname, { nextConfig, parseData: true }),
         defaultLocale: options.router.defaultLocale,
         buildId: '',
       })
