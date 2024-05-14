@@ -138,6 +138,7 @@ import {
 } from './request-adapter/x-invoke-path-request-adapter'
 import { BaseRequestAdapter } from './request-adapter/base-request-adapter'
 import { BubbledError, isBubbledError } from './lib/trace/bubble-error'
+import { StandaloneRequestAdapter } from './request-adapter/standalone-request-adapter'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -550,7 +551,27 @@ export default abstract class Server<
     this.responseCache = this.getResponseCache({ dev })
 
     // Setup the request adapter.
-    if (this.minimalMode && process.env.NEXT_RUNTIME !== 'edge') {
+    if (
+      this.minimalMode &&
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      this.nextConfig.output === 'standalone'
+    ) {
+      this.requestAdapter = new StandaloneRequestAdapter(
+        new XMatchedPathRequestAdapter(
+          this.buildId,
+          this.enabledDirectories,
+          this.i18nProvider,
+          this.matchers,
+          this.nextConfig,
+          this.getRoutesManifest.bind(this)
+        ),
+        new XInvokePathRequestAdapter(
+          this.enabledDirectories,
+          this.i18nProvider,
+          this.nextConfig
+        )
+      )
+    } else if (this.minimalMode && process.env.NEXT_RUNTIME !== 'edge') {
       this.requestAdapter = new XMatchedPathRequestAdapter(
         this.buildId,
         this.enabledDirectories,
