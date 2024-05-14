@@ -10,7 +10,6 @@ import {
 } from '../../client/components/app-router-headers'
 import { getHostname } from '../../shared/lib/get-hostname'
 import { BasePathPathnameNormalizer } from '../future/normalizers/request/base-path'
-import { I18nPathnameNormalizer } from '../future/normalizers/request/i18n-route-normalizer'
 import { addRequestMeta, type NextUrlWithParsedQuery } from '../request-meta'
 import { format } from 'url'
 import { parseUrl } from '../../shared/lib/router/utils/parse-url'
@@ -20,7 +19,6 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
 {
   protected readonly normalizers: {
     readonly basePath: BasePathPathnameNormalizer | undefined
-    readonly i18n: I18nPathnameNormalizer | undefined
   }
 
   constructor(
@@ -32,7 +30,6 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
       basePath: this.nextConfig.basePath
         ? new BasePathPathnameNormalizer(this.nextConfig.basePath)
         : undefined,
-      i18n: i18nProvider ? new I18nPathnameNormalizer(i18nProvider) : undefined,
     }
   }
 

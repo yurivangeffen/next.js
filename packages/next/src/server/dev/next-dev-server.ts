@@ -229,7 +229,7 @@ export default class DevServer extends Server {
           pagesDir,
           extensions,
           fileReader,
-          this.i18nNormalizer
+          this.localeNormalizer
         )
       )
       matchers.push(
@@ -237,7 +237,7 @@ export default class DevServer extends Server {
           pagesDir,
           extensions,
           fileReader,
-          this.i18nNormalizer
+          this.localeNormalizer
         )
       )
     }
