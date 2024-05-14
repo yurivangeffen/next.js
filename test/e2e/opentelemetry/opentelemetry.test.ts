@@ -833,7 +833,7 @@ describe('opentelemetry with disabled fetch tracing', () => {
   })
 
   afterEach(async () => {
-    if (collector) await collector.shutdown()
+    await collector.shutdown()
   })
 
   // turbopack does not support experimental.instrumentationHook
