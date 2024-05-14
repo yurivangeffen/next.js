@@ -13,12 +13,14 @@ import { BasePathPathnameNormalizer } from '../future/normalizers/request/base-p
 import { addRequestMeta, type NextUrlWithParsedQuery } from '../request-meta'
 import { format } from 'url'
 import { parseUrl } from '../../shared/lib/router/utils/parse-url'
+import { LocaleRouteNormalizer } from '../future/normalizers/locale-route-normalizer'
 
 export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
   implements RequestAdapter<ServerRequest>
 {
   protected readonly normalizers: {
     readonly basePath: BasePathPathnameNormalizer | undefined
+    readonly locale: LocaleRouteNormalizer | undefined
   }
 
   constructor(
@@ -29,6 +31,9 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
     this.normalizers = {
       basePath: this.nextConfig.basePath
         ? new BasePathPathnameNormalizer(this.nextConfig.basePath)
+        : undefined,
+      locale: i18nProvider
+        ? new LocaleRouteNormalizer(i18nProvider)
         : undefined,
     }
   }
@@ -54,8 +59,8 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
       }
     }
 
-    if (this.i18nProvider) {
-      const { pathname } = this.i18nProvider.analyze(url.pathname)
+    if (this.normalizers.locale) {
+      const pathname = this.normalizers.locale.normalize(url.pathname)
       if (pathname !== url.pathname) {
         url.pathname = pathname
         addRequestMeta(req, 'didStripLocale', true)
