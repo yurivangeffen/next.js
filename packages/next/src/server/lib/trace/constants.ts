@@ -21,6 +21,7 @@ enum BaseServerSpan {
   renderErrorToResponse = 'BaseServer.renderErrorToResponse',
   renderErrorToHTML = 'BaseServer.renderErrorToHTML',
   render404 = 'BaseServer.render404',
+  after = 'BaseServer.after',
 }
 
 enum LoadComponentsSpan {
