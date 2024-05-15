@@ -2337,7 +2337,7 @@ export default abstract class Server<
         isServerAction,
         postponed,
         waitUntil: undefined,
-        onClose: undefined,
+        onClose: res.onClose.bind(res),
       }
 
       if (isDebugPPRSkeleton) {
@@ -2379,7 +2379,7 @@ export default abstract class Server<
               incrementalCache,
               isRevalidate: isSSG,
               waitUntil: undefined,
-              onClose: undefined,
+              onClose: res.onClose.bind(res),
             },
           }
 
