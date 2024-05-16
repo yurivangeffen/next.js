@@ -51,10 +51,8 @@ use turbopack_binding::{
             virtual_output::VirtualOutputAsset,
         },
         ecmascript::{
-            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
-            resolve::esm_resolve,
-            tree_shake::asset::EcmascriptModulePartAsset,
-            EcmascriptModuleAsset,
+            chunk::EcmascriptChunkPlaceable, resolve::esm_resolve,
+            tree_shake::asset::EcmascriptModulePartAsset, EcmascriptModuleAsset,
         },
         nodejs::{EntryChunkGroupResult, NodeJsChunkingContext},
         turbopack::{
